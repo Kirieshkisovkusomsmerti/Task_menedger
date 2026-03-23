@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Визуальный Таск-Менеджер (ФИНАЛ)</title>
+    <title>Визуальный Таск-Менеджер (Ultra PRO)</title>
 
     <!-- Библиотеки -->
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/standalone/umd/vis-network.min.js"></script>
@@ -15,11 +15,26 @@
         [data-theme="dark"] { --bg-color: #1a1a1a; --surface-color: #2d2d2d; --text-main: #f8f9fa; --text-desc: #ced4da; --border-color: #495057; --input-bg: #333333; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: var(--bg-color); transition: background-color 0.3s; }
 
-        /* ВЕРХНЯЯ ПАНЕЛЬ */
+        /* ВЕРХНЯЯ ПАНЕЛЬ И ФИЛЬТРЫ */
         #toolbar { position: absolute; top: 15px; left: 15px; right: 15px; background: var(--surface-color); padding: 10px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); z-index: 100; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
-        #toolbar button, #theme-select { padding: 8px 12px; font-size: 14px; cursor: pointer; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-main); font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+        #toolbar button, #toolbar select { padding: 8px 12px; font-size: 14px; cursor: pointer; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-main); font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 5px; outline: none; }
         #toolbar button:hover { opacity: 0.8; transform: translateY(-1px); }
         .vis-manipulation { display: none !important; }
+
+        /* БОКОВАЯ ПАНЕЛЬ ПАПОК (ПРОЕКТОВ) */
+        #sidebar { position: absolute; top: 0; right: -320px; width: 300px; height: 100vh; background: var(--surface-color); box-shadow: -4px 0 15px rgba(0,0,0,0.1); z-index: 180; transition: right 0.3s ease; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; border-left: 1px solid var(--border-color); }
+        #sidebar.open { right: 0; }
+        #sidebar h3 { margin-top: 0; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
+        #close-sidebar { cursor: pointer; color: #888; border: none; background: transparent; font-size: 20px; }
+        .folder-list { flex-grow: 1; overflow-y: auto; margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .folder-item { padding: 12px; background: var(--bg-color); border-radius: 8px; cursor: pointer; color: var(--text-main); font-weight: bold; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; border: 2px solid transparent; }
+        .folder-item:hover { background: #e0e7ff; color: #3730a3; }
+        .folder-item.active { border-color: #118ab2; background: #f0f9ff; color: #0369a1; }
+        .folder-action { cursor: pointer; font-size: 16px; padding: 4px; border-radius: 4px; }
+        .folder-action:hover { background: #e2e8f0; }
+        .folder-delete { color: #e11d48; }
+        .folder-delete:hover { background: #ffe4e6; }
+        #btn-add-folder { margin-top: 15px; padding: 12px; background: #118ab2; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
         /* ХОЛСТ ГРАФА */
         #network-container { width: 100%; height: 100vh; outline: none; }
@@ -60,12 +75,16 @@
         #btn-fit { position: absolute; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: var(--surface-color); color: var(--text-main); border: 2px solid var(--border-color); font-size: 24px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 90; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
         #btn-fit:hover { transform: scale(1.1); }
 
+        /* Темная подложка при открытой панели */
+        #overlay { display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 170; }
+
         /* АДАПТАЦИЯ ДЛЯ ТЕЛЕФОНА (Панель внизу) */
         @media (max-width: 768px) { 
             #toolbar { top: auto; bottom: 20px; left: 10px; right: 10px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); padding: 8px; } 
             .modal { width: 85%; padding: 20px; } 
             #description-panel { padding-bottom: 120px; height: auto; min-height: 180px; } 
             #btn-fit { bottom: 100px; } 
+            #sidebar { width: 85%; right: -100%; }
         }
     </style>
 </head>
@@ -73,31 +92,59 @@
 
     <!-- ВЕРХНЯЯ (ИЛИ НИЖНЯЯ НА МОБИЛКЕ) ПАНЕЛЬ ИНСТРУМЕНТОВ -->
     <div id="toolbar">
-        <button onclick="addNodeMode()">➕ Добавить</button>
+        <button onclick="startQuickAdd()" style="background: #10b981; color: white; border: none;">➕ Добавить</button>
         <button onclick="addEdgeMode()">🔗 Соединить</button>
         <button onclick="deleteSelected()" style="color: #e11d48;">🗑 Удалить</button>
-        
-        <!-- ВОЗВРАЩЕННАЯ КНОПКА ОТМЕНЫ (Скрыта по умолчанию) -->
         <button id="btn-undo" onclick="undoDelete()" style="display: none; background: #fef3c7; color: #d97706; border-color: #fbbf24;">↩️ Отменить</button>
-        
-        <button onclick="clearAllData()" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">⚠️ Очистить поле</button>
+        <button onclick="clearAllData()" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">⚠️ Очистить доску</button>
         
         <div style="width: 2px; height: 20px; background: var(--border-color); margin: 0 5px;"></div>
         
-        <!-- КНОПКИ РЕЗЕРВНОГО КОПИРОВАНИЯ (На ПК) -->
-        <button onclick="exportData()" title="Скачать копию на ПК">💾 Бэкап</button>
-        <button onclick="document.getElementById('file-import').click()">📂 Загрузить</button>
+        <!-- ФИЛЬТРЫ -->
+        <select id="filter-category" onchange="applyFilters()">
+            <option value="all">🔍 Все задачи</option>
+            <option value="work">💼 Работа/Учеба</option>
+            <option value="sport">🏃‍♂️ Спорт/Здоровье</option>
+            <option value="home">🏠 Быт/Личное</option>
+        </select>
+        
+        <select id="filter-edge" onchange="applyFilters()">
+            <option value="all">⚡ Любые связи</option>
+            <option value="urgent">🚨 Дедлайны</option>
+            <option value="idea">💡 Идеи</option>
+            <option value="normal">➖ Обычные</option>
+        </select>
+
+        <div style="width: 2px; height: 20px; background: var(--border-color); margin: 0 5px;"></div>
+
+        <!-- КНОПКИ БЭКАПА -->
+        <button onclick="exportData()" title="Скачать резервную копию на ПК">💾 Бэкап</button>
+        <button onclick="document.getElementById('file-import').click()" title="Загрузить резервную копию">📂 Загрузить</button>
         <input type="file" id="file-import" style="display: none" accept=".json" onchange="importData(event)">
 
         <select id="theme-select" onchange="applyTheme(this.value)">
             <option value="light">☀️ Светлая</option><option value="dark">🌙 Тёмная</option><option value="system">💻 Авто</option>
         </select>
+
+        <!-- КНОПКА ОТКРЫТИЯ ПАПОК -->
+        <button onclick="toggleSidebar()" style="background: #f59e0b; color: white; border: none; margin-left: auto;">🗂 Проекты</button>
     </div>
 
-    <!-- КНОПКА ПРИЦЕЛА -->
+    <!-- ТЕМНАЯ ПОДЛОЖКА -->
+    <div id="overlay" onclick="toggleSidebar()"></div>
+
+    <!-- БОКОВАЯ ПАНЕЛЬ ПАПОК -->
+    <div id="sidebar">
+        <h3>Мои Проекты <button id="close-sidebar" onclick="toggleSidebar()">✖</button></h3>
+        <div class="folder-list" id="folder-list">
+            <!-- Сюда добавляются папки -->
+        </div>
+        <button id="btn-add-folder" onclick="uiCreateFolder()">➕ Создать новый проект</button>
+    </div>
+
     <button id="btn-fit" onclick="fitCamera()" title="Показать весь граф">🎯</button>
 
-    <!-- МОДАЛКА 1: ВЫБОР СМАЙЛА И ЦВЕТА -->
+    <!-- МОДАЛКА 1: ВЫБОР СМАЙЛА -->
     <div id="emoji-picker" class="modal">
         <h4>1. Выбери цвет:</h4>
         <div class="color-row" id="color-selector">
@@ -107,37 +154,40 @@
             <div class="color-dot" style="background:#ef476f" onclick="pickColor(this, '#ef476f')"></div>
             <div class="color-dot" style="background:#8338ec" onclick="pickColor(this, '#8338ec')"></div>
         </div>
-        
         <h4>2. Выбери иконку:</h4>
+        
         <div class="category-title">💼 Работа и Учёба</div>
         <div class="emoji-grid">
-            <span onclick="selectEmoji('💼')">💼</span><span onclick="selectEmoji('💻')">💻</span><span onclick="selectEmoji('📞')">📞</span>
-            <span onclick="selectEmoji('📚')">📚</span><span onclick="selectEmoji('📊')">📊</span><span onclick="selectEmoji('🎓')">🎓</span>
+            <span onclick="selectEmoji('💼', 'work')">💼</span><span onclick="selectEmoji('💻', 'work')">💻</span><span onclick="selectEmoji('📞', 'work')">📞</span>
+            <span onclick="selectEmoji('📚', 'work')">📚</span><span onclick="selectEmoji('📊', 'work')">📊</span><span onclick="selectEmoji('🎓', 'work')">🎓</span>
         </div>
+        
         <div class="category-title">🏃‍♂️ Здоровье и Спорт</div>
         <div class="emoji-grid">
-            <span onclick="selectEmoji('🏋️‍♂️')">🏋️‍♂️</span><span onclick="selectEmoji('🏃‍♂️')">🏃‍♂️</span><span onclick="selectEmoji('🧘‍♂️')">🧘‍♂️</span>
-            <span onclick="selectEmoji('🍏')">🍏</span><span onclick="selectEmoji('💊')">💊</span><span onclick="selectEmoji('⚽')">⚽</span>
+            <span onclick="selectEmoji('🏋️‍♂️', 'sport')">🏋️‍♂️</span><span onclick="selectEmoji('🏃‍♂️', 'sport')">🏃‍♂️</span><span onclick="selectEmoji('🧘‍♂️', 'sport')">🧘‍♂️</span>
+            <span onclick="selectEmoji('🍏', 'sport')">🍏</span><span onclick="selectEmoji('💊', 'sport')">💊</span><span onclick="selectEmoji('⚽', 'sport')">⚽</span>
         </div>
+        
         <div class="category-title">🏠 Быт и Личное</div>
         <div class="emoji-grid">
-            <span onclick="selectEmoji('🛒')">🛒</span><span onclick="selectEmoji('🧹')">🧹</span><span onclick="selectEmoji('🍔')">🍔</span>
-            <span onclick="selectEmoji('💰')">💰</span><span onclick="selectEmoji('✈️')">✈️</span><span onclick="selectEmoji('💡')">💡</span>
+            <span onclick="selectEmoji('🛒', 'home')">🛒</span><span onclick="selectEmoji('🧹', 'home')">🧹</span><span onclick="selectEmoji('🍔', 'home')">🍔</span>
+            <span onclick="selectEmoji('💰', 'home')">💰</span><span onclick="selectEmoji('✈️', 'home')">✈️</span><span onclick="selectEmoji('💡', 'home')">💡</span>
         </div>
+        
         <div class="btn-row" style="margin-top: 15px;"><button class="cancel-btn" onclick="cancelAction()">Отмена</button></div>
     </div>
 
-    <!-- МОДАЛКА 2: ВВОД ДАННЫХ (ОБЯЗАТЕЛЬНЫЕ ПОЛЯ) -->
+    <!-- МОДАЛКА 2: ВВОД ДАННЫХ (НЕОБЯЗАТЕЛЬНЫЕ ПОЛЯ) -->
     <div id="text-input-modal" class="modal">
         <h4 id="text-modal-title">Настройка задачи</h4>
-        <span class="input-label">Обязательно: Название</span>
-        <input type="text" id="custom-title" class="custom-input" placeholder="Например: Позвонить клиенту">
+        <span class="input-label">Название (по желанию)</span>
+        <input type="text" id="custom-title" class="custom-input" placeholder="Без названия">
         
-        <span class="input-label">Обязательно: Срок (Дедлайн)</span>
+        <span class="input-label">Срок (по желанию)</span>
         <input type="date" id="custom-date" class="custom-input">
         
-        <span class="input-label">Обязательно: Описание</span>
-        <textarea id="custom-desc" class="custom-input custom-textarea" placeholder="Подробное описание задачи..."></textarea>
+        <span class="input-label">Описание (по желанию)</span>
+        <textarea id="custom-desc" class="custom-input custom-textarea" placeholder="Краткие заметки..."></textarea>
         
         <div class="btn-row"><button class="btn-save" onclick="saveCustomText()">✔ Создать</button><button class="cancel-btn" onclick="cancelAction()">Отмена</button></div>
     </div>
@@ -165,50 +215,233 @@
     </div>
 
     <script type="text/javascript">
-var network, nodes, edges;
+        // =========================================================
+        // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ЗАЩИТА
+        // =========================================================
+        var network, nodes, edges;
         var tempNodeData = null, tempCallback = null, tempEdgeData = null, tempEdgeCallback = null;
         var selectedColor = '#118ab2', currentSelectedNodeId = null;
-        
-        // КОРЗИНА ДЛЯ ОТМЕНЫ УДАЛЕНИЯ
         var trash =[]; 
+        var saveTimeout = null;
+        let folderLogic; 
 
-        // ЗАЩИТА ОТ XSS (Очищаем введенные данные от вредоносных символов)
+        var appData = {
+            activeFolderId: 'default',
+            theme: 'light',
+            folders: {}
+        };
+
         function escapeHTML(str) { 
             return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); 
         }
 
         function applyTheme(theme) {
-            localStorage.setItem('taskManagerApp_Theme', theme);
+            appData.theme = theme;
             document.body.setAttribute('data-theme', theme === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme);
+            if (window.saveData) window.saveData();
         }
 
-        // 🟢 ИДЕАЛЬНАЯ ОПТИМИЗАЦИЯ ПАМЯТИ (DEBOUNCE)
-        // Браузер больше не будет виснуть! Мы сохраняем данные только когда ты закончил действие,
-        // а не 60 раз в секунду во время перетаскивания.
-        var saveTimeout = null;
+        // =========================================================
+        // ЧАСТЬ A: ЛОГИКА ПАПОК (FolderManager)
+        // Изолированный модуль управления состоянием.
+        // =========================================================
+        class FolderManager {
+            constructor(initialFolders, initialActiveId) {
+                this.folders = JSON.parse(JSON.stringify(initialFolders || {}));
+                this.activeFolderId = initialActiveId;
+
+                if (!this.folders['default']) {
+                    this.folders['default'] = this._createEmptyFolderState('Мой первый проект');
+                    this.activeFolderId = 'default';
+                }
+            }
+
+            _createEmptyFolderState(name) {
+                return {
+                    name: name,
+                    nodes:[{ id: 1, rawEmoji: '', rawTitle: 'Я', category: 'other', label: '🧍‍♂️\nЯ', font: { size: 40, color: '#333' }, shape: 'circle', color: '#ffd166', fixed: true }],
+                    edges:[]
+                };
+            }
+
+            validateName(name) {
+                if (!name || typeof name !== 'string') throw new Error("Имя не может быть пустым");
+                const trimmed = name.trim();
+                if (trimmed.length === 0) throw new Error("Имя не может состоять только из пробелов");
+                if (trimmed.length > 50) throw new Error("Имя слишком длинное (максимум 50 символов)");
+                if (/[<>]/g.test(trimmed)) throw new Error("Имя содержит недопустимые символы (<, >)");
+                return trimmed;
+            }
+
+            createFolder(name) {
+                const validName = this.validateName(name);
+                const newId = 'folder_' + Date.now();
+                this.folders[newId] = this._createEmptyFolderState(validName);
+                return newId; 
+            }
+
+            renameFolder(id, newName) {
+                if (!this.folders[id]) throw new Error("Папка не найдена");
+                const validName = this.validateName(newName);
+                this.folders[id].name = validName;
+                return validName;
+            }
+
+            deleteFolder(id) {
+                if (!this.folders[id]) throw new Error("Папка не найдена");
+                if (Object.keys(this.folders).length <= 1) throw new Error("Нельзя удалить последнюю папку");
+                
+                delete this.folders[id];
+                if (this.activeFolderId === id) {
+                    this.activeFolderId = Object.keys(this.folders)[0];
+                }
+                return this.activeFolderId;
+            }
+
+            switchFolder(targetId, currentState) {
+                if (!this.folders[targetId]) throw new Error("Целевая папка не существует.");
+                if (targetId === this.activeFolderId) return this.folders[targetId];
+
+                // Безопасно сохраняем состояние текущей папки
+                if (this.folders[this.activeFolderId] && currentState) {
+                    this.folders[this.activeFolderId].nodes = JSON.parse(JSON.stringify(currentState.nodes));
+                    this.folders[this.activeFolderId].edges = JSON.parse(JSON.stringify(currentState.edges));
+                }
+                this.activeFolderId = targetId;
+                return JSON.parse(JSON.stringify(this.folders[targetId]));
+            }
+
+            getActiveFolderData() { return this.folders[this.activeFolderId]; }
+        }
+
+        // =========================================================
+        // ЧАСТЬ B: ИНТЕГРАЦИЯ UI И СИНХРОНИЗАЦИЯ
+        // =========================================================
+
+        function getCurrentNetworkState() {
+            if (!network) return { nodes: [], edges:[] };
+            const positions = network.getPositions();
+            const nodesArray = nodes.get().map(n => {
+                const c = Object.assign({}, n);
+                if (!c.hidden && positions[c.id]) { c.x = positions[c.id].x; c.y = positions[c.id].y; }
+                return c;
+            });
+            return { nodes: nodesArray, edges: edges.get() };
+        }
+
         window.saveData = function() {
-            if (!network) return;
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(function() {
-                var positions = network.getPositions();
-                var nodesArray = nodes.get().map(function(n) {
-                    var c = Object.assign({}, n);
-                    if (positions[c.id]) { c.x = positions[c.id].x; c.y = positions[c.id].y; }
-                    return c;
-                });
-                // Пишем в память браузера тихо и без тормозов
-                localStorage.setItem('taskManagerApp_Data', JSON.stringify({ nodes: nodesArray, edges: edges.get() }));
-            }, 1000); 
+                if(network && folderLogic) {
+                    const currentState = getCurrentNetworkState();
+                    if (folderLogic.folders[folderLogic.activeFolderId]) {
+                        folderLogic.folders[folderLogic.activeFolderId].nodes = currentState.nodes;
+                        folderLogic.folders[folderLogic.activeFolderId].edges = currentState.edges;
+                    }
+                    appData.folders = folderLogic.folders;
+                    appData.activeFolderId = folderLogic.activeFolderId;
+                    localStorage.setItem('taskManagerApp_ProData', JSON.stringify(appData));
+                }
+            }, 800);
         };
 
-        window.clearAllData = function() {
-            if (confirm("ВНИМАНИЕ: Это полностью очистит всё поле. Вы уверены?")) {
-                localStorage.removeItem('taskManagerApp_Data');
-                location.reload();
+        window.uiRenderFolders = function() {
+            const list = document.getElementById('folder-list');
+            list.innerHTML = '';
+            const folders = folderLogic.folders;
+            
+            for (let id in folders) {
+                let f = folders[id];
+                let div = document.createElement('div');
+                div.className = 'folder-item' + (id === folderLogic.activeFolderId ? ' active' : '');
+                
+                div.innerHTML = `<span onclick="uiSwitchFolder('${id}')" style="flex-grow:1; word-break: break-all;">${escapeHTML(f.name)}</span>`;
+                
+                let actions = document.createElement('div');
+                actions.style.display = 'flex'; actions.style.gap = '5px';
+                
+                actions.innerHTML += `<span class="folder-action" style="color: #10b981;" onclick="uiRenameFolder('${id}')" title="Переименовать">✏️</span>`;
+                if (id !== 'default') {
+                    actions.innerHTML += `<span class="folder-action folder-delete" onclick="uiDeleteFolder('${id}')" title="Удалить">🗑</span>`;
+                }
+                
+                div.appendChild(actions);
+                list.appendChild(div);
             }
         };
 
-        // 🎭 УМНЫЕ ЭМОЦИИ ДЛЯ "Я"
+        window.toggleSidebar = function() {
+            var sb = document.getElementById('sidebar');
+            var ov = document.getElementById('overlay');
+            if (sb.classList.contains('open')) {
+                sb.classList.remove('open'); ov.style.display = 'none';
+            } else {
+                sb.classList.add('open'); ov.style.display = 'block';
+                uiRenderFolders();
+            }
+        };
+
+        window.uiCreateFolder = function() {
+            let name = prompt("Введите название нового проекта:");
+            if (name === null) return;
+            try {
+                const newId = folderLogic.createFolder(name);
+                uiSwitchFolder(newId);
+            } catch (error) { alert("Ошибка создания: " + error.message); }
+        };
+
+        window.uiRenameFolder = function(id) {
+            const currentName = folderLogic.folders[id].name;
+            let newName = prompt("Новое имя для папки:", currentName);
+            if (newName === null || newName === currentName) return;
+            try {
+                folderLogic.renameFolder(id, newName);
+                uiRenderFolders(); 
+                saveData(); 
+            } catch (error) { alert("Ошибка: " + error.message); }
+        };
+
+        window.uiDeleteFolder = function(id) {
+            if (!confirm("Удалить проект и все его задачи? Действие необратимо.")) return;
+            try {
+                const fallbackId = folderLogic.deleteFolder(id);
+                if (folderLogic.activeFolderId === fallbackId && id !== fallbackId) {
+                    const fallbackData = folderLogic.getActiveFolderData();
+                    nodes.clear(); edges.clear();
+                    nodes.add(fallbackData.nodes); edges.add(fallbackData.edges);
+                    trash =[]; document.getElementById('btn-undo').style.display = 'none';
+                    updateAllLabelsAndEmotions();
+                    applyFilters();
+                    network.fit({ animation: { duration: 300 } });
+                }
+                uiRenderFolders();
+                saveData();
+            } catch (error) { alert("Ошибка удаления: " + error.message); }
+        };
+
+        window.uiSwitchFolder = function(targetId) {
+            if (targetId === folderLogic.activeFolderId) return;
+            try {
+                const currentState = getCurrentNetworkState();
+                const newFolderData = folderLogic.switchFolder(targetId, currentState);
+                
+                nodes.clear(); edges.clear();
+                nodes.add(newFolderData.nodes); edges.add(newFolderData.edges);
+                
+                trash =[]; document.getElementById('btn-undo').style.display = 'none';
+                
+                updateAllLabelsAndEmotions();
+                applyFilters();
+                uiRenderFolders();
+                network.fit({ animation: { duration: 300 } });
+                
+                appData.folders = folderLogic.folders;
+                appData.activeFolderId = folderLogic.activeFolderId;
+                saveData(); 
+            } catch (error) { alert("Сбой при переключении: " + error.message); }
+        };
+
+        // --- ЛОГИКА ЭМОЦИЙ ---
         window.updateAllLabelsAndEmotions = function() {
             var updates =[];
             var allTasks = nodes.get().filter(n => n.id !== 1);
@@ -223,47 +456,70 @@ var network, nodes, edges;
             });
 
             var emotion = '🧍‍♂️';
-            if (allTasks.length > 0 && allTasks.every(t => t.isCompleted)) emotion = '😎'; // Всё выполнено
-            else if (activeUrgent >= 5) emotion = '😱'; // >= 5 дедлайнов (Ужас)
-            else if (activeNormal >= 10) emotion = '😰'; // >= 10 задач (Потерянный)
-            else if (activeUrgent > 0) emotion = '😟'; // Есть дедлайны (Напряжен)
-            else if (activeNormal >= 5) emotion = '🤔'; // >= 5 задач (Задумчив)
-            else emotion = '😐'; // Обычное состояние
+            if (allTasks.length > 0 && allTasks.every(t => t.isCompleted)) emotion = '😎'; 
+            else if (activeUrgent >= 5) emotion = '😱'; 
+            else if (activeNormal >= 10) emotion = '😰'; 
+            else if (activeUrgent > 0) emotion = '😟'; 
+            else if (activeNormal >= 5) emotion = '🤔'; 
+            else emotion = '😐'; 
 
-            updates.push({ id: 1, label: emotion + '\nЯ' });
+            // Защита от бесконечного цикла
+            let centerNode = nodes.get(1);
+            if (centerNode && centerNode.label !== emotion + '\nЯ') {
+                updates.push({ id: 1, label: emotion + '\nЯ' });
+            }
 
-            // Обновляем текст задач (без полосок и коробок)
             nodes.forEach(node => {
                 if(node.id === 1) return;
-                let text = (node.isCompleted ? '✅ ' : '') + (node.rawEmoji || '') + '\n' + (node.rawTitle || 'Задача');
+                let title = node.rawTitle ? node.rawTitle : 'Без названия';
+                let text = (node.isCompleted ? '✅ ' : '') + (node.rawEmoji || '') + '\n' + title;
                 if (node.label !== text) updates.push({ id: node.id, label: text });
             });
-            nodes.update(updates);
+            
+            if (updates.length > 0) nodes.update(updates);
         };
 
+        // --- ФИЛЬТРЫ ---
+        window.applyFilters = function() {
+            let catFilter = document.getElementById('filter-category').value;
+            let edgeFilter = document.getElementById('filter-edge').value;
+
+            let nodesToUpdate =[];
+            nodes.forEach(n => {
+                if (n.id === 1) return; 
+                let shouldHide = (catFilter !== 'all' && n.category !== catFilter);
+                if (n.hidden !== shouldHide) nodesToUpdate.push({ id: n.id, hidden: shouldHide });
+            });
+            if (nodesToUpdate.length > 0) nodes.update(nodesToUpdate);
+
+            let edgesToUpdate =[];
+            edges.forEach(e => {
+                let shouldHide = (edgeFilter !== 'all' && e.type !== edgeFilter);
+                if (e.hidden !== shouldHide) edgesToUpdate.push({ id: e.id, hidden: shouldHide });
+            });
+            if (edgesToUpdate.length > 0) edges.update(edgesToUpdate);
+        };
+
+        // --- ИНИЦИАЛИЗАЦИЯ ---
         window.onload = function() {
-            var savedTheme = localStorage.getItem('taskManagerApp_Theme') || 'light';
-            document.getElementById('theme-select').value = savedTheme; applyTheme(savedTheme);
-
-            // АВТОМАТИЧЕСКАЯ ЗАГРУЗКА ДАННЫХ
-            var savedData = localStorage.getItem('taskManagerApp_Data');
-            var initialNodes = savedData ? JSON.parse(savedData).nodes :[];
-            var initialEdges = savedData ? JSON.parse(savedData).edges :[];
+            var saved = localStorage.getItem('taskManagerApp_ProData');
+            if (saved) { try { appData = JSON.parse(saved); } catch(e) {} }
             
-            // Защита: гарантируем, что Я (id 1) есть всегда и зафиксирован
-            if(initialNodes.length === 0) initialNodes.push({ id: 1, rawEmoji: '', rawTitle: 'Я', label: '🧍‍♂️\nЯ', font: { size: 40, color: '#333' }, shape: 'circle', color: '#ffd166', fixed: true });
-            initialNodes.forEach(n => { if(n.id === 1) n.fixed = true; });
+            folderLogic = new FolderManager(appData.folders, appData.activeFolderId);
+            appData.folders = folderLogic.folders;
+            appData.activeFolderId = folderLogic.activeFolderId;
 
-            nodes = new vis.DataSet(initialNodes);
-            edges = new vis.DataSet(initialEdges);
+            document.getElementById('theme-select').value = appData.theme || 'light'; 
+            applyTheme(appData.theme || 'light');
+
+            const activeData = folderLogic.getActiveFolderData();
+            nodes = new vis.DataSet(activeData.nodes);
+            edges = new vis.DataSet(activeData.edges);
             
             var options = {
                 physics: { enabled: true, solver: 'forceAtlas2Based', forceAtlas2Based: { gravitationalConstant: -100, springLength: 150 } },
                 interaction: { hover: true, dragNodes: true },
-                manipulation: { enabled: false,
-                    addNode: function(d, cb) { tempNodeData=d; tempCallback=cb; document.getElementById('emoji-picker').style.display='block'; },
-                    addEdge: function(d, cb) { if(d.from!==d.to){ tempEdgeData=d; tempEdgeCallback=cb; document.getElementById('edge-type-modal').style.display='block'; } else cb(null); }
-                }
+                manipulation: { enabled: false, addEdge: function(d, cb) { if(d.from!==d.to){ tempEdgeData=d; tempEdgeCallback=cb; document.getElementById('edge-type-modal').style.display='block'; } else cb(null); } }
             };
 
             network = new vis.Network(document.getElementById('network-container'), { nodes: nodes, edges: edges }, options);
@@ -281,8 +537,7 @@ var network, nodes, edges;
             network.on('selectNode', function (p) {
                 var node = nodes.get(p.nodes[0]);
                 currentSelectedNodeId = node.id;
-                
-                document.getElementById('desc-title').innerText = (node.rawEmoji ? node.rawEmoji + ' ' : '') + node.rawTitle;
+                document.getElementById('desc-title').innerText = (node.rawEmoji ? node.rawEmoji + ' ' : '') + (node.rawTitle || 'Без названия');
                 
                 var dateEl = document.getElementById('desc-date');
                 if (node.dueDate) { dateEl.innerText = "🗓 Срок: " + node.dueDate; dateEl.style.display = 'inline-block'; } 
@@ -296,93 +551,76 @@ var network, nodes, edges;
             network.on('deselectNode', function () { currentSelectedNodeId = null; document.getElementById('description-panel').classList.remove('active'); });
         };
 
-        // 🗑 ЛОГИКА ОТМЕНЫ УДАЛЕНИЯ (Корзина)
+        // --- УПРАВЛЕНИЕ ---
+        window.clearAllData = function() {
+            if (confirm("Это полностью очистит текущую доску. Продолжить?")) {
+                nodes.clear(); edges.clear();
+                nodes.add({ id: 1, rawEmoji: '', rawTitle: 'Я', category: 'other', label: '🧍‍♂️\nЯ', font: { size: 40, color: '#333' }, shape: 'circle', color: '#ffd166', fixed: true });
+                saveData();
+            }
+        };
+
         window.deleteSelected = function() { 
-            let selNodes = network.getSelectedNodes(); 
-            let selEdges = network.getSelectedEdges(); 
+            let selNodes = network.getSelectedNodes(); let selEdges = network.getSelectedEdges(); 
             if (selNodes.length === 0 && selEdges.length === 0) return; 
             
-            // Сохраняем в корзину перед удалением
-            let delNodes = selNodes.map(id => nodes.get(id)); 
-            let delEdges = selEdges.map(id => edges.get(id)); 
+            let delNodes = selNodes.map(id => nodes.get(id)); let delEdges = selEdges.map(id => edges.get(id)); 
             selNodes.forEach(nId => { network.getConnectedEdges(nId).forEach(eId => { if(!selEdges.includes(eId)) delEdges.push(edges.get(eId)); }); }); 
-            delEdges = [...new Map(delEdges.map(item => [item.id, item])).values()]; // Убираем дубликаты
+            delEdges =[...new Map(delEdges.map(item => [item.id, item])).values()]; 
             
             trash.push({ nodes: delNodes, edges: delEdges }); 
-            document.getElementById('btn-undo').style.display = 'flex'; // Показываем кнопку "Отменить"
-            
-            network.deleteSelected(); 
-            document.getElementById('description-panel').classList.remove('active'); 
+            document.getElementById('btn-undo').style.display = 'flex'; 
+            network.deleteSelected(); document.getElementById('description-panel').classList.remove('active'); 
         };
 
-        // Возврат из корзины
         window.undoDelete = function() { 
             if (trash.length === 0) return; 
-            let last = trash.pop(); 
-            nodes.add(last.nodes); 
-            edges.add(last.edges); 
+            let last = trash.pop(); nodes.add(last.nodes); edges.add(last.edges); 
             if (trash.length === 0) document.getElementById('btn-undo').style.display = 'none'; 
+            applyFilters();
         };
 
-        // 💾 РЕЗЕРВНОЕ КОПИРОВАНИЕ НА ПК (Если браузер очистится)
-        window.exportData = function() { let dataStr = localStorage.getItem('taskManagerApp_Data') || JSON.stringify({nodes:nodes.get(), edges:edges.get()}); let a = document.createElement('a'); a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr); a.download = 'MyTasks_Backup.json'; a.click(); };
-        window.importData = function(event) { let file = event.target.files[0]; if (!file) return; let reader = new FileReader(); reader.onload = function(e) { try { let data = JSON.parse(e.target.result); if (data.nodes && data.edges) { localStorage.setItem('taskManagerApp_Data', JSON.stringify(data)); location.reload(); } else alert("Неверный формат файла!"); } catch(err) { alert("Ошибка чтения файла!"); } }; reader.readAsText(file); };
-        
-        // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+        window.exportData = function() { let a = document.createElement('a'); a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(appData)); a.download = 'MyTasks_Backup.json'; a.click(); };
+        window.importData = function(event) { let file = event.target.files[0]; if (!file) return; let reader = new FileReader(); reader.onload = function(e) { try { let data = JSON.parse(e.target.result); if (data.folders) { localStorage.setItem('taskManagerApp_ProData', JSON.stringify(data)); location.reload(); } else alert("Неверный формат!"); } catch(err) { alert("Ошибка!"); } }; reader.readAsText(file); };
         window.fitCamera = function() { network.fit({ animation: { duration: 800, easingFunction: "easeInOutQuad" } }); };
         window.pickColor = function(el, color) { document.querySelectorAll('.color-dot').forEach(e => e.classList.remove('selected')); el.classList.add('selected'); selectedColor = color; };
         
-        window.selectEmoji = function(emoji) { 
-            document.getElementById('emoji-picker').style.display = 'none'; 
-            tempNodeData.rawEmoji = emoji; 
+        window.startQuickAdd = function() {
+            let pos = network.getViewPosition(); let scale = network.getScale();
+            let dx = (Math.random() - 0.5) * (250 / scale); let dy = (Math.random() - 0.5) * (250 / scale);
+            tempNodeData = { id: Date.now(), x: pos.x + dx, y: pos.y + dy };
+            document.getElementById('emoji-picker').style.display = 'block';
+        };
+
+        window.selectEmoji = function(emoji, category) { 
+            document.getElementById('emoji-picker').style.display = 'none'; tempNodeData.rawEmoji = emoji; tempNodeData.category = category || 'other'; 
             document.getElementById('text-modal-title').innerText = emoji + " Настройка"; 
-            document.getElementById('custom-title').value = ''; 
-            document.getElementById('custom-date').value = ''; 
-            document.getElementById('custom-desc').value = ''; 
-            document.getElementById('text-input-modal').style.display = 'block'; 
-            document.getElementById('custom-title').focus(); 
+            document.getElementById('custom-title').value = ''; document.getElementById('custom-date').value = ''; document.getElementById('custom-desc').value = ''; 
+            document.getElementById('text-input-modal').style.display = 'block'; document.getElementById('custom-title').focus(); 
         };
         
-        // ✅ ОБЯЗАТЕЛЬНЫЕ ПОЛЯ ДЛЯ СОЗДАНИЯ
         window.saveCustomText = function() { 
-            var title = document.getElementById('custom-title').value.trim(); 
-            var dueDate = document.getElementById('custom-date').value.trim(); 
-            var desc = document.getElementById('custom-desc').value.trim(); 
-            
-            if (!title || !dueDate || !desc) {
-                alert("⚠️ Внимание: Поля Название, Срок и Описание ОБЯЗАТЕЛЬНЫ для заполнения!");
-                return; // Останавливаем сохранение
-            }
-
+            var title = document.getElementById('custom-title').value.trim(); var dueDate = document.getElementById('custom-date').value.trim(); var desc = document.getElementById('custom-desc').value.trim(); 
             document.getElementById('text-input-modal').style.display = 'none'; 
             
-            tempNodeData.rawTitle = escapeHTML(title); 
-            tempNodeData.dueDate = escapeHTML(dueDate);
-            tempNodeData.description = escapeHTML(desc); 
+            tempNodeData.rawTitle = title ? escapeHTML(title) : ''; tempNodeData.dueDate = dueDate ? escapeHTML(dueDate) : ''; tempNodeData.description = desc ? escapeHTML(desc) : ''; 
+            tempNodeData.isCompleted = false; tempNodeData.shape = 'box'; tempNodeData.color = selectedColor; tempNodeData.font = { size: 20, color: selectedColor === '#ffd166' ? '#333' : '#fff' }; 
             
-            tempNodeData.isCompleted = false; 
-            tempNodeData.shape = 'box'; 
-            tempNodeData.color = selectedColor; 
-            tempNodeData.font = { size: 20, color: selectedColor === '#ffd166' ? '#333' : '#fff' }; 
-            
-            tempCallback(tempNodeData); 
-            network.setOptions({ physics: { enabled: true } }); 
-            setTimeout(() => network.setOptions({ physics: { enabled: false } }), 1000); 
+            nodes.add(tempNodeData); applyFilters(); 
+            network.setOptions({ physics: { enabled: true } }); setTimeout(() => network.setOptions({ physics: { enabled: false } }), 1000); 
         };
 
         window.saveEdge = function(type) { 
-            document.getElementById('edge-type-modal').style.display = 'none'; 
-            tempEdgeData.type = type; 
+            document.getElementById('edge-type-modal').style.display = 'none'; tempEdgeData.type = type; 
             if (type === 'normal') { tempEdgeData.color = { color: '#9ca3af', highlight: '#3b82f6' }; tempEdgeData.width = 2; tempEdgeData.dashes = false; } 
             else if (type === 'urgent') { tempEdgeData.color = { color: '#ef476f', highlight: '#ef476f' }; tempEdgeData.width = 4; tempEdgeData.dashes = false; } 
             else if (type === 'idea') { tempEdgeData.color = { color: '#118ab2', highlight: '#118ab2' }; tempEdgeData.width = 2; tempEdgeData.dashes = true; } 
             
-            tempEdgeCallback(tempEdgeData); 
-            network.setOptions({ physics: { enabled: true } }); 
-            setTimeout(() => network.setOptions({ physics: { enabled: false } }), 1000); 
+            tempEdgeCallback(tempEdgeData); applyFilters();
+            network.setOptions({ physics: { enabled: true } }); setTimeout(() => network.setOptions({ physics: { enabled: false } }), 1000); 
         };
         
-        window.cancelAction = function() { document.querySelectorAll('.modal').forEach(el => el.style.display = 'none'); if(tempCallback) tempCallback(null); if(tempEdgeCallback) tempEdgeCallback(null); };
+        window.cancelAction = function() { document.querySelectorAll('.modal').forEach(el => el.style.display = 'none'); if(tempEdgeCallback) tempEdgeCallback(null); };
         window.markCompleted = function() { if (!currentSelectedNodeId) return; var node = nodes.get(currentSelectedNodeId); nodes.update({ id: node.id, isCompleted: true, color: { background: '#dcfce7', border: '#22c55e' }, borderWidth: 3, font: { color: '#166534' } }); document.getElementById('btn-complete').style.display = 'none'; confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors:['#22c55e', '#118ab2', '#ffd166', '#ef476f'] }); };
         window.addNodeMode = function() { network.addNodeMode(); };
         window.addEdgeMode = function() { network.addEdgeMode(); };
