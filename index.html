@@ -2,18 +2,25 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Исправлено: Запрет зума при вводе текста на мобильных телефонах -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Визуальный Таск-Менеджер (PRO Design)</title>
 
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/standalone/umd/vis-network.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
-        /* --- ЦВЕТОВЫЕ ТЕМЫ --- */
-        :root { --bg-color: #f4f7f6; --surface-color: #ffffff; --text-main: #2c3e50; --text-desc: #34495e; --border-color: #ddd; --input-bg: #ffffff; }[data-theme="dark"] { --bg-color: #1a1a1a; --surface-color: #2d2d2d; --text-main: #f8f9fa; --text-desc: #ced4da; --border-color: #495057; --input-bg: #333333; }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: var(--bg-color); transition: background-color 0.3s; }
+        :root { --bg-color: #f4f7f6; --surface-color: #ffffff; --text-main: #2c3e50; --text-desc: #34495e; --border-color: #ddd; --input-bg: #ffffff; }
+        [data-theme="dark"] { --bg-color: #1a1a1a; --surface-color: #2d2d2d; --text-main: #f8f9fa; --text-desc: #ced4da; --border-color: #495057; --input-bg: #333333; }
+        
+        /* Исправлено: Жесткая фиксация экрана от перетягиваний и соседних окон */
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; position: fixed; 
+            font-family: 'Segoe UI', sans-serif; overflow: hidden; 
+            background-color: var(--bg-color); transition: background-color 0.3s; 
+            overscroll-behavior: none; touch-action: none;
+        }
 
-        /* --- ОБЩИЕ СТИЛИ КНОПОК --- */
         .control-btn, .control-select { 
             padding: 10px 14px; font-size: 14px; cursor: pointer; border: 1px solid var(--border-color); 
             border-radius: 8px; background: var(--surface-color); color: var(--text-main); font-weight: bold; 
@@ -23,25 +30,20 @@
         .control-btn:hover, .control-select:hover { opacity: 0.8; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .vis-manipulation { display: none !important; }
 
-        /* --- РАСПОЛОЖЕНИЕ ПАНЕЛЕЙ (ПК) --- */
+        /* РАСПОЛОЖЕНИЕ ПАНЕЛЕЙ (ПК) */
         #btn-projects { position: absolute; top: 15px; right: 15px; background: #f59e0b; color: white; border: none; z-index: 100; width: auto; }
-        
         #primary-actions { position: absolute; top: 15px; left: 15px; z-index: 100; display: flex; flex-direction: column; gap: 10px; width: 180px; }
         #secondary-actions { position: absolute; top: 135px; left: 15px; z-index: 100; display: flex; flex-direction: column; gap: 10px; width: 180px; }
 
-        /* --- ВЫПАДАЮЩИЕ МЕНЮ (DROPDOWNS) --- */
+        /* ВЫПАДАЮЩИЕ МЕНЮ */
         .dropdown { position: relative; display: inline-block; width: 100%; outline: none; }
         .dropbtn { justify-content: space-between; }
-        .dropdown-content { 
-            display: none; position: absolute; left: 105%; top: 0; background-color: var(--surface-color); 
-            min-width: 200px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 8px; z-index: 200; 
-            border: 1px solid var(--border-color); padding: 8px; flex-direction: column; gap: 5px; 
-        }
+        .dropdown-content { display: none; position: absolute; left: 105%; top: 0; background-color: var(--surface-color); min-width: 200px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 8px; z-index: 200; border: 1px solid var(--border-color); padding: 8px; flex-direction: column; gap: 5px; }
         .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content { display: flex; }
         .dropdown-content .control-btn { border: none; background: transparent; box-shadow: none; padding: 8px 12px; }
         .dropdown-content .control-btn:hover { background: var(--bg-color); transform: none; }
 
-        /* --- БОКОВАЯ ПАНЕЛЬ ПАПОК (ПРОЕКТОВ) --- */
+        /* БОКОВАЯ ПАНЕЛЬ ПАПОК */
         #sidebar { position: absolute; top: 0; right: -320px; width: 300px; height: 100vh; background: var(--surface-color); box-shadow: -4px 0 15px rgba(0,0,0,0.1); z-index: 180; transition: right 0.3s ease; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; border-left: 1px solid var(--border-color); }
         #sidebar.open { right: 0; }
         #sidebar h3 { margin-top: 0; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
@@ -55,20 +57,21 @@
         .folder-delete { color: #e11d48; }
         .folder-delete:hover { background: #ffe4e6; }
 
-        #network-container { width: 100%; height: 100vh; outline: none; }
+        /* ХОЛСТ */
+        #network-container { width: 100%; height: 100vh; outline: none; touch-action: pan-y pan-x; }
         #overlay { display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 170; }
 
-        /* --- НИЖНЯЯ ПАНЕЛЬ ОПИСАНИЯ --- */
+        /* НИЖНЯЯ ПАНЕЛЬ ОПИСАНИЯ */
         #description-panel { position: absolute; bottom: -250px; left: 0; width: 100%; height: auto; min-height: 160px; padding: 20px; box-sizing: border-box; background: var(--surface-color); border-top: 3px solid var(--border-color); box-shadow: 0 -10px 30px rgba(0,0,0,0.15); z-index: 150; transition: bottom 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); display: flex; justify-content: space-between; align-items: flex-start; }
         #description-panel.active { bottom: 0; }
         .desc-content { max-width: 75%; }
         h3 { margin-top: 0; color: var(--text-main); font-size: 22px; margin-bottom: 5px; }
         .due-date-badge { display: inline-block; background: #ffe4e6; color: #e11d48; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-bottom: 10px; }
         #desc-text { color: var(--text-desc); font-size: 16px; margin: 0; white-space: pre-wrap; }
-        #btn-complete { padding: 12px 24px; font-size: 16px; font-weight: bold; color: white; background: #22c55e; border: none; border-radius: 8px; cursor: pointer; }
+        #btn-complete { padding: 12px 24px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; }
 
-        /* --- ВСПЛЫВАЮЩИЕ ОКНА (МОДАЛКИ) --- */
-        .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--surface-color); padding: 25px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 200; width: 340px; color: var(--text-main); }
+        /* МОДАЛКИ */
+        .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--surface-color); padding: 25px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 200; width: 340px; color: var(--text-main); max-width: 90vw; }
         .modal h4 { margin: 0 0 15px 0; font-size: 16px; text-align: center; }
         .color-row { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
         .color-dot { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.1s; }
@@ -78,7 +81,7 @@
         .emoji-grid span { cursor: pointer; transition: transform 0.1s; user-select: none; }
         .emoji-grid span:hover { transform: scale(1.3); }
 
-        .custom-input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background: var(--input-bg); color: var(--text-main); }
+        .custom-input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 16px; /* 16px предотвращает зум на iOS */ background: var(--input-bg); color: var(--text-main); }
         .custom-textarea { height: 80px; resize: none; }
         .input-label { font-size: 12px; font-weight: bold; color: #888; margin-bottom: 4px; display: block; text-transform: uppercase; }
         .btn-row { display: flex; gap: 10px; }
@@ -92,20 +95,16 @@
         /* --- АДАПТАЦИЯ ДЛЯ ТЕЛЕФОНА --- */
         @media (max-width: 768px) { 
             #btn-projects { top: 10px; right: 10px; }
-            
-            /* Кнопки Добавить и Соединить уезжают вниз экрана */
             #primary-actions { top: auto; bottom: 20px; left: 10px; right: 10px; width: auto; flex-direction: row; justify-content: center; background: var(--bg-color); padding: 10px; border-radius: 12px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); z-index: 160; }
-            #primary-actions .control-btn { justify-content: center; }
+            #primary-actions .control-btn { justify-content: center; flex: 1; padding: 10px 5px; font-size: 13px; }
             
-            /* Остальные кнопки (Фильтры, Сохранение) уходят влево вверх сеткой */
-            #secondary-actions { top: 10px; left: 10px; width: 60%; flex-direction: row; flex-wrap: wrap; gap: 5px; }
-            #secondary-actions > * { flex: 1 1 45%; } /* В два столбца */
+            #secondary-actions { top: 10px; left: 10px; width: 65%; flex-direction: row; flex-wrap: wrap; gap: 5px; }
+            #secondary-actions > * { flex: 1 1 45%; } 
             
-            /* Выпадающие меню на телефоне открываются вниз */
             .dropdown-content { left: 0; top: 100%; margin-top: 5px; min-width: 100%; }
-            
-            .modal { width: 85%; padding: 20px; } 
-            #description-panel { padding-bottom: 100px; height: auto; min-height: 180px; } 
+            .modal { padding: 20px; } 
+            #description-panel { padding-bottom: 100px; height: auto; min-height: 180px; flex-direction: column; gap: 15px; } 
+            #btn-complete { width: 100%; }
             #btn-fit { bottom: 90px; right: 10px; } 
             #sidebar { width: 85%; right: -100%; }
         }
@@ -113,7 +112,7 @@
 </head>
 <body>
 
-    <!-- 1. КНОПКА ПРОЕКТОВ (Всегда сверху справа) -->
+    <!-- 1. КНОПКА ПРОЕКТОВ (Сверху справа) -->
     <button id="btn-projects" class="control-btn" onclick="toggleSidebar()">🗂 Проекты</button>
 
     <!-- 2. ОСНОВНЫЕ ДЕЙСТВИЯ (Слева на ПК, Снизу на телефоне) -->
@@ -123,39 +122,39 @@
         <button id="btn-undo" class="control-btn" onclick="undoDelete()" style="display: none; background: #fef3c7; color: #d97706; border-color: #fbbf24;">↩️ Отменить</button>
     </div>
 
-    <!-- 3. ВТОРОСТЕПЕННЫЕ ДЕЙСТВИЯ И ФИЛЬТРЫ (Слева на ПК, Сверху слева на телефоне) -->
+    <!-- 3. ВТОРОСТЕПЕННЫЕ ДЕЙСТВИЯ (Слева на ПК, Сверху слева на телефоне) -->
     <div id="secondary-actions">
         
         <!-- Выпадающее меню: УДАЛЕНИЕ -->
         <div class="dropdown" tabindex="0">
-            <button class="control-btn dropbtn" style="color: #e11d48; border-color: #fecdd3; background: #fff1f2;">🗑 Удаление ▼</button>
+            <button class="control-btn dropbtn" style="color: #e11d48; border-color: #fecdd3; background: #fff1f2;">🗑 Очистка ▼</button>
             <div class="dropdown-content">
-                <button class="control-btn" onclick="deleteSelected()" style="color: #e11d48;">🗑 Удалить выбранное</button>
-                <button class="control-btn" onclick="clearAllData()" style="color: #991b1b;">⚠️ Очистить поле</button>
+                <button class="control-btn" onclick="closeDropdowns(); deleteSelected();" style="color: #e11d48;">🗑 Удалить выбранное</button>
+                <button class="control-btn" onclick="closeDropdowns(); clearAllData();" style="color: #991b1b;">⚠️ Очистить поле</button>
             </div>
         </div>
 
         <!-- Выпадающее меню: СОХРАНЕНИЕ -->
         <div class="dropdown" tabindex="0">
-            <button class="control-btn dropbtn" style="color: #3730a3; border-color: #c7d2fe; background: #e0e7ff;">💾 Сохранение ▼</button>
+            <button class="control-btn dropbtn" style="color: #3730a3; border-color: #c7d2fe; background: #e0e7ff;">💾 Бэкап ▼</button>
             <div class="dropdown-content">
-                <button class="control-btn" onclick="exportData()">💾 Бэкап (Скачать)</button>
-                <button class="control-btn" onclick="document.getElementById('file-import').click()">📂 Загрузить (Импорт)</button>
+                <button class="control-btn" onclick="closeDropdowns(); exportData();">💾 Скачать (Экспорт)</button>
+                <button class="control-btn" onclick="closeDropdowns(); document.getElementById('file-import').click();">📂 Загрузить (Импорт)</button>
             </div>
         </div>
         <input type="file" id="file-import" style="display: none" accept=".json" onchange="importData(event)">
 
-        <!-- Раздельные фильтры -->
+        <!-- Укороченные названия фильтров для телефона -->
         <select id="filter-category" class="control-select" onchange="applyFilters()">
-            <option value="all">🔍 Все задачи</option>
-            <option value="work">💼 Работа/Учеба</option>
-            <option value="sport">🏃‍♂️ Спорт/Здоровье</option>
-            <option value="home">🏠 Быт/Личное</option>
+            <option value="all">🔍 Все</option>
+            <option value="work">💼 Работа</option>
+            <option value="sport">🏃‍♂️ Спорт</option>
+            <option value="home">🏠 Быт</option>
         </select>
         
         <select id="filter-edge" class="control-select" onchange="applyFilters()">
-            <option value="all">⚡ Любые связи</option>
-            <option value="urgent">🚨 Дедлайны</option>
+            <option value="all">⚡ Все</option>
+            <option value="urgent">🚨 Срочно</option>
             <option value="idea">💡 Идеи</option>
             <option value="normal">➖ Обычные</option>
         </select>
@@ -172,7 +171,7 @@
     <div id="sidebar">
         <h3>Мои Проекты <button id="close-sidebar" onclick="toggleSidebar()">✖</button></h3>
         <div class="folder-list" id="folder-list"></div>
-        <button id="btn-add-folder" class="control-btn" onclick="uiCreateFolder()" style="background: #118ab2; color: white; border: none; justify-content: center;">➕ Создать новый проект</button>
+        <button id="btn-add-folder" class="control-btn" onclick="uiCreateFolder()" style="background: #118ab2; color: white; border: none; justify-content: center;">➕ Создать проект</button>
     </div>
 
     <button id="btn-fit" onclick="fitCamera()" title="Показать весь граф">🎯</button>
@@ -233,7 +232,7 @@
             <div id="desc-date" class="due-date-badge" style="display:none;"></div>
             <p id="desc-text">Описание</p>
         </div>
-        <button id="btn-complete" onclick="markCompleted()">✔ Выполнено</button>
+        <button id="btn-complete" onclick="toggleCompletion()">✔ Выполнено</button>
     </div>
 
     <script type="text/javascript">
@@ -244,6 +243,9 @@
         var folderLogic; 
 
         var appData = { activeFolderId: 'default', theme: 'light', folders: {} };
+
+        // Снятие фокуса с меню (чтобы выпадающие списки закрывались после клика на мобильном)
+        function closeDropdowns() { if (document.activeElement) document.activeElement.blur(); }
 
         function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
 
@@ -491,11 +493,28 @@
             network.on('selectNode', function (p) {
                 var node = nodes.get(p.nodes[0]); currentSelectedNodeId = node.id;
                 document.getElementById('desc-title').innerText = (node.rawEmoji ? node.rawEmoji + ' ' : '') + (node.rawTitle || 'Без названия');
+                
                 var dateEl = document.getElementById('desc-date');
-                if (node.dueDate) { dateEl.innerText = "🗓 Срок: " + node.dueDate; dateEl.style.display = 'inline-block'; } else { dateEl.style.display = 'none'; }
+                if (node.dueDate) { dateEl.innerText = "🗓 Срок: " + node.dueDate; dateEl.style.display = 'inline-block'; } 
+                else { dateEl.style.display = 'none'; }
+                
                 document.getElementById('desc-text').innerText = node.description || "Описания нет.";
                 document.getElementById('description-panel').classList.add('active');
-                document.getElementById('btn-complete').style.display = (node.id === 1 || node.isCompleted) ? 'none' : 'block';
+                
+                // Настройка кнопки Выполнения (Снятие/Установка)
+                let btn = document.getElementById('btn-complete');
+                if (node.id === 1) {
+                    btn.style.display = 'none';
+                } else {
+                    btn.style.display = 'block';
+                    if (node.isCompleted) {
+                        btn.innerText = '❌ Отменить выполнение';
+                        btn.style.background = '#e11d48';
+                    } else {
+                        btn.innerText = '✔ Выполнено';
+                        btn.style.background = '#22c55e';
+                    }
+                }
             });
 
             network.on('deselectNode', function () { currentSelectedNodeId = null; document.getElementById('description-panel').classList.remove('active'); });
@@ -516,7 +535,7 @@
             
             let delNodes = selNodes.map(id => nodes.get(id)); let delEdges = selEdges.map(id => edges.get(id)); 
             selNodes.forEach(nId => { network.getConnectedEdges(nId).forEach(eId => { if(!selEdges.includes(eId)) delEdges.push(edges.get(eId)); }); }); 
-            delEdges =[...new Map(delEdges.map(item => [item.id, item])).values()]; 
+            delEdges =[...new Map(delEdges.map(item =>[item.id, item])).values()]; 
             
             trash.push({ nodes: delNodes, edges: delEdges }); 
             document.getElementById('btn-undo').style.display = 'flex'; 
@@ -553,7 +572,8 @@
             document.getElementById('text-input-modal').style.display = 'none'; 
             
             tempNodeData.rawTitle = title ? escapeHTML(title) : ''; tempNodeData.dueDate = dueDate ? escapeHTML(dueDate) : ''; tempNodeData.description = desc ? escapeHTML(desc) : ''; 
-            tempNodeData.isCompleted = false; tempNodeData.shape = 'box'; tempNodeData.color = selectedColor; tempNodeData.font = { size: 20, color: selectedColor === '#ffd166' ? '#333' : '#fff' }; 
+            tempNodeData.isCompleted = false; tempNodeData.shape = 'box'; tempNodeData.baseColor = selectedColor; tempNodeData.color = selectedColor; 
+            tempNodeData.font = { size: 20, color: selectedColor === '#ffd166' ? '#333' : '#fff' }; 
             
             nodes.add(tempNodeData); applyFilters(); 
             network.setOptions({ physics: { enabled: true } }); setTimeout(() => network.setOptions({ physics: { enabled: false } }), 1000); 
@@ -570,7 +590,29 @@
         };
         
         window.cancelAction = function() { document.querySelectorAll('.modal').forEach(el => el.style.display = 'none'); if(tempEdgeCallback) tempEdgeCallback(null); };
-        window.markCompleted = function() { if (!currentSelectedNodeId) return; var node = nodes.get(currentSelectedNodeId); nodes.update({ id: node.id, isCompleted: true, color: { background: '#dcfce7', border: '#22c55e' }, borderWidth: 3, font: { color: '#166534' } }); document.getElementById('btn-complete').style.display = 'none'; confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors:['#22c55e', '#118ab2', '#ffd166', '#ef476f'] }); };
+        
+        // --- УМНАЯ КНОПКА ВЫПОЛНЕНИЯ (С ВОЗМОЖНОСТЬЮ ОТМЕНЫ) ---
+        window.toggleCompletion = function() { 
+            if (!currentSelectedNodeId) return; 
+            var node = nodes.get(currentSelectedNodeId); 
+            var willBeCompleted = !node.isCompleted;
+
+            if (willBeCompleted) {
+                if (!node.baseColor) node.baseColor = node.color; // Сохраняем оригинал
+                nodes.update({ id: node.id, isCompleted: true, color: { background: '#dcfce7', border: '#22c55e' }, borderWidth: 3, font: { color: '#166534' } }); 
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors:['#22c55e', '#118ab2', '#ffd166', '#ef476f'] }); 
+                let btn = document.getElementById('btn-complete');
+                btn.innerText = '❌ Отменить выполнение'; btn.style.background = '#e11d48';
+            } else {
+                let base = node.baseColor || '#118ab2';
+                nodes.update({ id: node.id, isCompleted: false, color: base, borderWidth: 1, font: { color: base === '#ffd166' ? '#333' : '#fff' } });
+                let btn = document.getElementById('btn-complete');
+                btn.innerText = '✔ Выполнено'; btn.style.background = '#22c55e';
+            }
+            updateAllLabelsAndEmotions();
+        };
+
+        window.addNodeMode = function() { network.addNodeMode(); };
         window.addEdgeMode = function() { network.addEdgeMode(); };
     </script>
 </body>
