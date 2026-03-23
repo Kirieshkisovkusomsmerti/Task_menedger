@@ -2,20 +2,20 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <!-- Исправлено: Запрет зума при вводе текста на мобильных телефонах -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Визуальный Таск-Менеджер (PRO Design)</title>
+    <title>Визуальный Таск-Менеджер (PRO Design & Optimized)</title>
 
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/standalone/umd/vis-network.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
+        /* --- ЦВЕТОВЫЕ ТЕМЫ --- */
         :root { --bg-color: #f4f7f6; --surface-color: #ffffff; --text-main: #2c3e50; --text-desc: #34495e; --border-color: #ddd; --input-bg: #ffffff; }
         [data-theme="dark"] { --bg-color: #1a1a1a; --surface-color: #2d2d2d; --text-main: #f8f9fa; --text-desc: #ced4da; --border-color: #495057; --input-bg: #333333; }
         
-        /* Исправлено: Жесткая фиксация экрана от перетягиваний и соседних окон */
+        /* 100dvh И ЖЕСТКАЯ ФИКСАЦИЯ (ИДЕАЛЬНО ДЛЯ МОБИЛОК) */
         body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; position: fixed; 
+            margin: 0; padding: 0; width: 100%; height: 100dvh; position: fixed; 
             font-family: 'Segoe UI', sans-serif; overflow: hidden; 
             background-color: var(--bg-color); transition: background-color 0.3s; 
             overscroll-behavior: none; touch-action: none;
@@ -37,14 +37,14 @@
 
         /* ВЫПАДАЮЩИЕ МЕНЮ */
         .dropdown { position: relative; display: inline-block; width: 100%; outline: none; }
-        .dropbtn { justify-content: space-between; }
+        .dropbtn { justify-content: space-between; width: 100%; }
         .dropdown-content { display: none; position: absolute; left: 105%; top: 0; background-color: var(--surface-color); min-width: 200px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 8px; z-index: 200; border: 1px solid var(--border-color); padding: 8px; flex-direction: column; gap: 5px; }
         .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content { display: flex; }
         .dropdown-content .control-btn { border: none; background: transparent; box-shadow: none; padding: 8px 12px; }
         .dropdown-content .control-btn:hover { background: var(--bg-color); transform: none; }
 
-        /* БОКОВАЯ ПАНЕЛЬ ПАПОК */
-        #sidebar { position: absolute; top: 0; right: -320px; width: 300px; height: 100vh; background: var(--surface-color); box-shadow: -4px 0 15px rgba(0,0,0,0.1); z-index: 180; transition: right 0.3s ease; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; border-left: 1px solid var(--border-color); }
+        /* БОКОВАЯ ПАНЕЛЬ ПАПОК (ПРОЕКТОВ) */
+        #sidebar { position: absolute; top: 0; right: -320px; width: 300px; height: 100dvh; background: var(--surface-color); box-shadow: -4px 0 15px rgba(0,0,0,0.1); z-index: 180; transition: right 0.3s ease; display: flex; flex-direction: column; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box; border-left: 1px solid var(--border-color); }
         #sidebar.open { right: 0; }
         #sidebar h3 { margin-top: 0; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
         #close-sidebar { cursor: pointer; color: #888; border: none; background: transparent; font-size: 20px; }
@@ -56,9 +56,10 @@
         .folder-action:hover { background: #e2e8f0; }
         .folder-delete { color: #e11d48; }
         .folder-delete:hover { background: #ffe4e6; }
+        #btn-add-folder { margin-top: 15px; padding: 12px; background: #118ab2; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; }
 
         /* ХОЛСТ */
-        #network-container { width: 100%; height: 100vh; outline: none; touch-action: pan-y pan-x; }
+        #network-container { width: 100%; height: 100dvh; outline: none; touch-action: pan-y pan-x; }
         #overlay { display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 170; }
 
         /* НИЖНЯЯ ПАНЕЛЬ ОПИСАНИЯ */
@@ -81,7 +82,7 @@
         .emoji-grid span { cursor: pointer; transition: transform 0.1s; user-select: none; }
         .emoji-grid span:hover { transform: scale(1.3); }
 
-        .custom-input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 16px; /* 16px предотвращает зум на iOS */ background: var(--input-bg); color: var(--text-main); }
+        .custom-input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 16px; background: var(--input-bg); color: var(--text-main); }
         .custom-textarea { height: 80px; resize: none; }
         .input-label { font-size: 12px; font-weight: bold; color: #888; margin-bottom: 4px; display: block; text-transform: uppercase; }
         .btn-row { display: flex; gap: 10px; }
@@ -95,37 +96,39 @@
         /* --- АДАПТАЦИЯ ДЛЯ ТЕЛЕФОНА --- */
         @media (max-width: 768px) { 
             #btn-projects { top: 10px; right: 10px; }
-            #primary-actions { top: auto; bottom: 20px; left: 10px; right: 10px; width: auto; flex-direction: row; justify-content: center; background: var(--bg-color); padding: 10px; border-radius: 12px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); z-index: 160; }
+            #primary-actions { top: auto; bottom: calc(20px + env(safe-area-inset-bottom)); left: 10px; right: 10px; width: auto; flex-direction: row; justify-content: center; background: var(--bg-color); padding: 10px; border-radius: 12px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); z-index: 160; }
             #primary-actions .control-btn { justify-content: center; flex: 1; padding: 10px 5px; font-size: 13px; }
             
             #secondary-actions { top: 10px; left: 10px; width: 65%; flex-direction: row; flex-wrap: wrap; gap: 5px; }
-            #secondary-actions > * { flex: 1 1 45%; } 
+            #secondary-actions > * { flex: 1 1 45%; box-sizing: border-box; } 
             
+            .dropdown { display: inline-block; flex: 1 1 45%; }
             .dropdown-content { left: 0; top: 100%; margin-top: 5px; min-width: 100%; }
-            .modal { padding: 20px; } 
-            #description-panel { padding-bottom: 100px; height: auto; min-height: 180px; flex-direction: column; gap: 15px; } 
+            
+            .modal { width: 85%; padding: 20px; } 
+            #description-panel { padding-bottom: calc(100px + env(safe-area-inset-bottom)); height: auto; min-height: 180px; flex-direction: column; gap: 15px; } 
             #btn-complete { width: 100%; }
-            #btn-fit { bottom: 90px; right: 10px; } 
+            #btn-fit { bottom: calc(90px + env(safe-area-inset-bottom)); right: 10px; } 
             #sidebar { width: 85%; right: -100%; }
         }
     </style>
 </head>
 <body>
 
-    <!-- 1. КНОПКА ПРОЕКТОВ (Сверху справа) -->
+    <!-- КНОПКА ПРОЕКТОВ -->
     <button id="btn-projects" class="control-btn" onclick="toggleSidebar()">🗂 Проекты</button>
 
-    <!-- 2. ОСНОВНЫЕ ДЕЙСТВИЯ (Слева на ПК, Снизу на телефоне) -->
+    <!-- ОСНОВНЫЕ ДЕЙСТВИЯ -->
     <div id="primary-actions">
         <button class="control-btn" onclick="startQuickAdd()" style="background: #10b981; color: white; border: none;">➕ Добавить</button>
         <button class="control-btn" onclick="addEdgeMode()">🔗 Соединить</button>
         <button id="btn-undo" class="control-btn" onclick="undoDelete()" style="display: none; background: #fef3c7; color: #d97706; border-color: #fbbf24;">↩️ Отменить</button>
     </div>
 
-    <!-- 3. ВТОРОСТЕПЕННЫЕ ДЕЙСТВИЯ (Слева на ПК, Сверху слева на телефоне) -->
+    <!-- ВТОРОСТЕПЕННЫЕ ДЕЙСТВИЯ И ФИЛЬТРЫ -->
     <div id="secondary-actions">
         
-        <!-- Выпадающее меню: УДАЛЕНИЕ -->
+        <!-- Выпадающее меню: ОЧИСТКА И УДАЛЕНИЕ -->
         <div class="dropdown" tabindex="0">
             <button class="control-btn dropbtn" style="color: #e11d48; border-color: #fecdd3; background: #fff1f2;">🗑 Очистка ▼</button>
             <div class="dropdown-content">
@@ -144,7 +147,6 @@
         </div>
         <input type="file" id="file-import" style="display: none" accept=".json" onchange="importData(event)">
 
-        <!-- Укороченные названия фильтров для телефона -->
         <select id="filter-category" class="control-select" onchange="applyFilters()">
             <option value="all">🔍 Все</option>
             <option value="work">💼 Работа</option>
@@ -176,7 +178,7 @@
 
     <button id="btn-fit" onclick="fitCamera()" title="Показать весь граф">🎯</button>
 
-    <!-- МОДАЛКИ (Скрыты) -->
+    <!-- МОДАЛКА 1: ВЫБОР СМАЙЛА -->
     <div id="emoji-picker" class="modal">
         <h4>1. Выбери цвет:</h4>
         <div class="color-row" id="color-selector">
@@ -236,6 +238,7 @@
     </div>
 
     <script type="text/javascript">
+        // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
         var network, nodes, edges;
         var tempNodeData = null, tempCallback = null, tempEdgeData = null, tempEdgeCallback = null;
         var selectedColor = '#118ab2', currentSelectedNodeId = null;
@@ -244,9 +247,8 @@
 
         var appData = { activeFolderId: 'default', theme: 'light', folders: {} };
 
-        // Снятие фокуса с меню (чтобы выпадающие списки закрывались после клика на мобильном)
+        // СБРОС ФОКУСА МЕНЮ
         function closeDropdowns() { if (document.activeElement) document.activeElement.blur(); }
-
         function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
 
         function applyTheme(theme) {
@@ -309,10 +311,10 @@
         }
 
         // =========================================================
-        // ИНТЕГРАЦИЯ UI И СИНХРОНИЗАЦИЯ
+        // ИНТЕГРАЦИЯ UI И УМНОЕ АВТОСОХРАНЕНИЕ
         // =========================================================
         function getCurrentNetworkState() {
-            if (!network) return { nodes: [], edges:[] };
+            if (!network) return { nodes:[], edges:[] };
             const positions = network.getPositions();
             const nodesArray = nodes.get().map(n => {
                 const c = Object.assign({}, n);
@@ -336,7 +338,7 @@
                     appData.activeFolderId = folderLogic.activeFolderId;
                     localStorage.setItem('taskManagerApp_ProData', JSON.stringify(appData));
                 }
-            }, 800);
+            }, 1500); // Оптимизация: увеличена задержка для исключения малейших фризов
         };
 
         window.uiRenderFolders = function() {
@@ -405,7 +407,7 @@
             } catch (error) { alert("Сбой при переключении: " + error.message); }
         };
 
-        // --- ЛОГИКА ЭМОЦИЙ ---
+        // --- ЛОГИКА ЭМОЦИЙ И ОБНОВЛЕНИЯ (Оптимизирована от фризов) ---
         window.updateAllLabelsAndEmotions = function() {
             var updates =[];
             var allTasks = nodes.get().filter(n => n.id !== 1);
@@ -427,11 +429,11 @@
             else if (activeNormal >= 5) emotion = '🤔'; 
             else emotion = '😐'; 
 
-            let centerNode = nodes.get(1);
-            if (centerNode && centerNode.label !== emotion + '\nЯ') updates.push({ id: 1, label: emotion + '\nЯ' });
-
             nodes.forEach(node => {
-                if(node.id === 1) return;
+                if(node.id === 1) {
+                    if (node.label !== emotion + '\nЯ') updates.push({ id: 1, label: emotion + '\nЯ' });
+                    return;
+                }
                 let title = node.rawTitle ? node.rawTitle : 'Без названия';
                 let text = (node.isCompleted ? '✅ ' : '') + (node.rawEmoji ? node.rawEmoji + '\n' : '') + title;
                 if (node.label !== text) updates.push({ id: node.id, label: text });
@@ -488,32 +490,26 @@
             network.once("afterDrawing", () => fitCamera());
             updateAllLabelsAndEmotions();
 
-            nodes.on('*', () => { updateAllLabelsAndEmotions(); saveData(); }); edges.on('*', () => { updateAllLabelsAndEmotions(); saveData(); });
+            // Оптимизация: Обновляем эмоции и пишем данные только при добавлении/удалении структур, а не на каждый чих
+            nodes.on('add', () => { updateAllLabelsAndEmotions(); saveData(); }); 
+            nodes.on('remove', () => { updateAllLabelsAndEmotions(); saveData(); }); 
+            edges.on('add', () => { updateAllLabelsAndEmotions(); saveData(); }); 
+            edges.on('remove', () => { updateAllLabelsAndEmotions(); saveData(); }); 
 
             network.on('selectNode', function (p) {
                 var node = nodes.get(p.nodes[0]); currentSelectedNodeId = node.id;
                 document.getElementById('desc-title').innerText = (node.rawEmoji ? node.rawEmoji + ' ' : '') + (node.rawTitle || 'Без названия');
-                
                 var dateEl = document.getElementById('desc-date');
-                if (node.dueDate) { dateEl.innerText = "🗓 Срок: " + node.dueDate; dateEl.style.display = 'inline-block'; } 
-                else { dateEl.style.display = 'none'; }
-                
+                if (node.dueDate) { dateEl.innerText = "🗓 Срок: " + node.dueDate; dateEl.style.display = 'inline-block'; } else { dateEl.style.display = 'none'; }
                 document.getElementById('desc-text').innerText = node.description || "Описания нет.";
                 document.getElementById('description-panel').classList.add('active');
                 
-                // Настройка кнопки Выполнения (Снятие/Установка)
                 let btn = document.getElementById('btn-complete');
-                if (node.id === 1) {
-                    btn.style.display = 'none';
-                } else {
+                if (node.id === 1) { btn.style.display = 'none'; } 
+                else {
                     btn.style.display = 'block';
-                    if (node.isCompleted) {
-                        btn.innerText = '❌ Отменить выполнение';
-                        btn.style.background = '#e11d48';
-                    } else {
-                        btn.innerText = '✔ Выполнено';
-                        btn.style.background = '#22c55e';
-                    }
+                    if (node.isCompleted) { btn.innerText = '❌ Отменить выполнение'; btn.style.background = '#e11d48'; } 
+                    else { btn.innerText = '✔ Выполнено'; btn.style.background = '#22c55e'; }
                 }
             });
 
@@ -546,7 +542,7 @@
             if (trash.length === 0) return; 
             let last = trash.pop(); nodes.add(last.nodes); edges.add(last.edges); 
             if (trash.length === 0) document.getElementById('btn-undo').style.display = 'none'; 
-            applyFilters();
+            applyFilters(); saveData();
         };
 
         window.exportData = function() { let a = document.createElement('a'); a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(appData)); a.download = 'MyTasks_Backup.json'; a.click(); };
@@ -591,14 +587,13 @@
         
         window.cancelAction = function() { document.querySelectorAll('.modal').forEach(el => el.style.display = 'none'); if(tempEdgeCallback) tempEdgeCallback(null); };
         
-        // --- УМНАЯ КНОПКА ВЫПОЛНЕНИЯ (С ВОЗМОЖНОСТЬЮ ОТМЕНЫ) ---
         window.toggleCompletion = function() { 
             if (!currentSelectedNodeId) return; 
             var node = nodes.get(currentSelectedNodeId); 
             var willBeCompleted = !node.isCompleted;
 
             if (willBeCompleted) {
-                if (!node.baseColor) node.baseColor = node.color; // Сохраняем оригинал
+                if (!node.baseColor) node.baseColor = node.color; 
                 nodes.update({ id: node.id, isCompleted: true, color: { background: '#dcfce7', border: '#22c55e' }, borderWidth: 3, font: { color: '#166534' } }); 
                 confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors:['#22c55e', '#118ab2', '#ffd166', '#ef476f'] }); 
                 let btn = document.getElementById('btn-complete');
@@ -609,7 +604,7 @@
                 let btn = document.getElementById('btn-complete');
                 btn.innerText = '✔ Выполнено'; btn.style.background = '#22c55e';
             }
-            updateAllLabelsAndEmotions();
+            updateAllLabelsAndEmotions(); saveData();
         };
 
         window.addNodeMode = function() { network.addNodeMode(); };
