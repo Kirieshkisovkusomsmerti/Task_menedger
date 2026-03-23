@@ -3,25 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Визуальный Таск-Менеджер (Ultra PRO)</title>
+    <title>Визуальный Таск-Менеджер (PRO Design)</title>
 
-    <!-- Библиотеки -->
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/standalone/umd/vis-network.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
         /* --- ЦВЕТОВЫЕ ТЕМЫ --- */
-        :root { --bg-color: #f4f7f6; --surface-color: #ffffff; --text-main: #2c3e50; --text-desc: #34495e; --border-color: #ddd; --input-bg: #ffffff; }
-        [data-theme="dark"] { --bg-color: #1a1a1a; --surface-color: #2d2d2d; --text-main: #f8f9fa; --text-desc: #ced4da; --border-color: #495057; --input-bg: #333333; }
+        :root { --bg-color: #f4f7f6; --surface-color: #ffffff; --text-main: #2c3e50; --text-desc: #34495e; --border-color: #ddd; --input-bg: #ffffff; }[data-theme="dark"] { --bg-color: #1a1a1a; --surface-color: #2d2d2d; --text-main: #f8f9fa; --text-desc: #ced4da; --border-color: #495057; --input-bg: #333333; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: var(--bg-color); transition: background-color 0.3s; }
 
-        /* ВЕРХНЯЯ ПАНЕЛЬ И ФИЛЬТРЫ */
-        #toolbar { position: absolute; top: 15px; left: 15px; right: 15px; background: var(--surface-color); padding: 10px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); z-index: 100; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
-        #toolbar button, #toolbar select { padding: 8px 12px; font-size: 14px; cursor: pointer; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-main); font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 5px; outline: none; }
-        #toolbar button:hover { opacity: 0.8; transform: translateY(-1px); }
+        /* --- ОБЩИЕ СТИЛИ КНОПОК --- */
+        .control-btn, .control-select { 
+            padding: 10px 14px; font-size: 14px; cursor: pointer; border: 1px solid var(--border-color); 
+            border-radius: 8px; background: var(--surface-color); color: var(--text-main); font-weight: bold; 
+            transition: 0.2s; display: flex; align-items: center; justify-content: flex-start; gap: 8px; 
+            outline: none; width: 100%; box-sizing: border-box; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .control-btn:hover, .control-select:hover { opacity: 0.8; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .vis-manipulation { display: none !important; }
 
-        /* БОКОВАЯ ПАНЕЛЬ ПАПОК (ПРОЕКТОВ) */
+        /* --- РАСПОЛОЖЕНИЕ ПАНЕЛЕЙ (ПК) --- */
+        #btn-projects { position: absolute; top: 15px; right: 15px; background: #f59e0b; color: white; border: none; z-index: 100; width: auto; }
+        
+        #primary-actions { position: absolute; top: 15px; left: 15px; z-index: 100; display: flex; flex-direction: column; gap: 10px; width: 180px; }
+        #secondary-actions { position: absolute; top: 135px; left: 15px; z-index: 100; display: flex; flex-direction: column; gap: 10px; width: 180px; }
+
+        /* --- ВЫПАДАЮЩИЕ МЕНЮ (DROPDOWNS) --- */
+        .dropdown { position: relative; display: inline-block; width: 100%; outline: none; }
+        .dropbtn { justify-content: space-between; }
+        .dropdown-content { 
+            display: none; position: absolute; left: 105%; top: 0; background-color: var(--surface-color); 
+            min-width: 200px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 8px; z-index: 200; 
+            border: 1px solid var(--border-color); padding: 8px; flex-direction: column; gap: 5px; 
+        }
+        .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content { display: flex; }
+        .dropdown-content .control-btn { border: none; background: transparent; box-shadow: none; padding: 8px 12px; }
+        .dropdown-content .control-btn:hover { background: var(--bg-color); transform: none; }
+
+        /* --- БОКОВАЯ ПАНЕЛЬ ПАПОК (ПРОЕКТОВ) --- */
         #sidebar { position: absolute; top: 0; right: -320px; width: 300px; height: 100vh; background: var(--surface-color); box-shadow: -4px 0 15px rgba(0,0,0,0.1); z-index: 180; transition: right 0.3s ease; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; border-left: 1px solid var(--border-color); }
         #sidebar.open { right: 0; }
         #sidebar h3 { margin-top: 0; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
@@ -34,12 +54,11 @@
         .folder-action:hover { background: #e2e8f0; }
         .folder-delete { color: #e11d48; }
         .folder-delete:hover { background: #ffe4e6; }
-        #btn-add-folder { margin-top: 15px; padding: 12px; background: #118ab2; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
-        /* ХОЛСТ ГРАФА */
         #network-container { width: 100%; height: 100vh; outline: none; }
+        #overlay { display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 170; }
 
-        /* НИЖНЯЯ ПАНЕЛЬ ОПИСАНИЯ */
+        /* --- НИЖНЯЯ ПАНЕЛЬ ОПИСАНИЯ --- */
         #description-panel { position: absolute; bottom: -250px; left: 0; width: 100%; height: auto; min-height: 160px; padding: 20px; box-sizing: border-box; background: var(--surface-color); border-top: 3px solid var(--border-color); box-shadow: 0 -10px 30px rgba(0,0,0,0.15); z-index: 150; transition: bottom 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); display: flex; justify-content: space-between; align-items: flex-start; }
         #description-panel.active { bottom: 0; }
         .desc-content { max-width: 75%; }
@@ -48,11 +67,9 @@
         #desc-text { color: var(--text-desc); font-size: 16px; margin: 0; white-space: pre-wrap; }
         #btn-complete { padding: 12px 24px; font-size: 16px; font-weight: bold; color: white; background: #22c55e; border: none; border-radius: 8px; cursor: pointer; }
 
-        /* МОДАЛЬНЫЕ ОКНА (ВСПЛЫВАЮЩИЕ) */
+        /* --- ВСПЛЫВАЮЩИЕ ОКНА (МОДАЛКИ) --- */
         .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--surface-color); padding: 25px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 200; width: 340px; color: var(--text-main); }
         .modal h4 { margin: 0 0 15px 0; font-size: 16px; text-align: center; }
-        
-        /* СМАЙЛИКИ И ЦВЕТА */
         .color-row { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
         .color-dot { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.1s; }
         .color-dot.selected { border: 2px solid var(--text-main); transform: scale(1.15); }
@@ -61,73 +78,91 @@
         .emoji-grid span { cursor: pointer; transition: transform 0.1s; user-select: none; }
         .emoji-grid span:hover { transform: scale(1.3); }
 
-        /* ИНПУТЫ И ФОРМЫ */
         .custom-input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background: var(--input-bg); color: var(--text-main); }
         .custom-textarea { height: 80px; resize: none; }
         .input-label { font-size: 12px; font-weight: bold; color: #888; margin-bottom: 4px; display: block; text-transform: uppercase; }
-        
         .btn-row { display: flex; gap: 10px; }
         .btn-save { flex: 1; background: #118ab2; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; }
         .cancel-btn { flex: 1; background: #ffe4e6 !important; color: #e11d48 !important; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .edge-btn { width: 100%; padding: 12px; margin-bottom: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; font-size: 14px; }
         
-        /* КНОПКА МАСШТАБА (ПРИЦЕЛ) */
         #btn-fit { position: absolute; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: var(--surface-color); color: var(--text-main); border: 2px solid var(--border-color); font-size: 24px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 90; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
         #btn-fit:hover { transform: scale(1.1); }
 
-        /* Темная подложка при открытой панели */
-        #overlay { display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 170; }
-
-        /* АДАПТАЦИЯ ДЛЯ ТЕЛЕФОНА (Панель внизу) */
+        /* --- АДАПТАЦИЯ ДЛЯ ТЕЛЕФОНА --- */
         @media (max-width: 768px) { 
-            #toolbar { top: auto; bottom: 20px; left: 10px; right: 10px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); padding: 8px; } 
+            #btn-projects { top: 10px; right: 10px; }
+            
+            /* Кнопки Добавить и Соединить уезжают вниз экрана */
+            #primary-actions { top: auto; bottom: 20px; left: 10px; right: 10px; width: auto; flex-direction: row; justify-content: center; background: var(--bg-color); padding: 10px; border-radius: 12px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); z-index: 160; }
+            #primary-actions .control-btn { justify-content: center; }
+            
+            /* Остальные кнопки (Фильтры, Сохранение) уходят влево вверх сеткой */
+            #secondary-actions { top: 10px; left: 10px; width: 60%; flex-direction: row; flex-wrap: wrap; gap: 5px; }
+            #secondary-actions > * { flex: 1 1 45%; } /* В два столбца */
+            
+            /* Выпадающие меню на телефоне открываются вниз */
+            .dropdown-content { left: 0; top: 100%; margin-top: 5px; min-width: 100%; }
+            
             .modal { width: 85%; padding: 20px; } 
-            #description-panel { padding-bottom: 120px; height: auto; min-height: 180px; } 
-            #btn-fit { bottom: 100px; } 
+            #description-panel { padding-bottom: 100px; height: auto; min-height: 180px; } 
+            #btn-fit { bottom: 90px; right: 10px; } 
             #sidebar { width: 85%; right: -100%; }
         }
     </style>
 </head>
 <body>
 
-    <!-- ВЕРХНЯЯ (ИЛИ НИЖНЯЯ НА МОБИЛКЕ) ПАНЕЛЬ ИНСТРУМЕНТОВ -->
-    <div id="toolbar">
-        <button onclick="startQuickAdd()" style="background: #10b981; color: white; border: none;">➕ Добавить</button>
-        <button onclick="addEdgeMode()">🔗 Соединить</button>
-        <button onclick="deleteSelected()" style="color: #e11d48;">🗑 Удалить</button>
-        <button id="btn-undo" onclick="undoDelete()" style="display: none; background: #fef3c7; color: #d97706; border-color: #fbbf24;">↩️ Отменить</button>
-        <button onclick="clearAllData()" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">⚠️ Очистить доску</button>
+    <!-- 1. КНОПКА ПРОЕКТОВ (Всегда сверху справа) -->
+    <button id="btn-projects" class="control-btn" onclick="toggleSidebar()">🗂 Проекты</button>
+
+    <!-- 2. ОСНОВНЫЕ ДЕЙСТВИЯ (Слева на ПК, Снизу на телефоне) -->
+    <div id="primary-actions">
+        <button class="control-btn" onclick="startQuickAdd()" style="background: #10b981; color: white; border: none;">➕ Добавить</button>
+        <button class="control-btn" onclick="addEdgeMode()">🔗 Соединить</button>
+        <button id="btn-undo" class="control-btn" onclick="undoDelete()" style="display: none; background: #fef3c7; color: #d97706; border-color: #fbbf24;">↩️ Отменить</button>
+    </div>
+
+    <!-- 3. ВТОРОСТЕПЕННЫЕ ДЕЙСТВИЯ И ФИЛЬТРЫ (Слева на ПК, Сверху слева на телефоне) -->
+    <div id="secondary-actions">
         
-        <div style="width: 2px; height: 20px; background: var(--border-color); margin: 0 5px;"></div>
-        
-        <!-- ФИЛЬТРЫ -->
-        <select id="filter-category" onchange="applyFilters()">
+        <!-- Выпадающее меню: УДАЛЕНИЕ -->
+        <div class="dropdown" tabindex="0">
+            <button class="control-btn dropbtn" style="color: #e11d48; border-color: #fecdd3; background: #fff1f2;">🗑 Удаление ▼</button>
+            <div class="dropdown-content">
+                <button class="control-btn" onclick="deleteSelected()" style="color: #e11d48;">🗑 Удалить выбранное</button>
+                <button class="control-btn" onclick="clearAllData()" style="color: #991b1b;">⚠️ Очистить поле</button>
+            </div>
+        </div>
+
+        <!-- Выпадающее меню: СОХРАНЕНИЕ -->
+        <div class="dropdown" tabindex="0">
+            <button class="control-btn dropbtn" style="color: #3730a3; border-color: #c7d2fe; background: #e0e7ff;">💾 Сохранение ▼</button>
+            <div class="dropdown-content">
+                <button class="control-btn" onclick="exportData()">💾 Бэкап (Скачать)</button>
+                <button class="control-btn" onclick="document.getElementById('file-import').click()">📂 Загрузить (Импорт)</button>
+            </div>
+        </div>
+        <input type="file" id="file-import" style="display: none" accept=".json" onchange="importData(event)">
+
+        <!-- Раздельные фильтры -->
+        <select id="filter-category" class="control-select" onchange="applyFilters()">
             <option value="all">🔍 Все задачи</option>
             <option value="work">💼 Работа/Учеба</option>
             <option value="sport">🏃‍♂️ Спорт/Здоровье</option>
             <option value="home">🏠 Быт/Личное</option>
         </select>
         
-        <select id="filter-edge" onchange="applyFilters()">
+        <select id="filter-edge" class="control-select" onchange="applyFilters()">
             <option value="all">⚡ Любые связи</option>
             <option value="urgent">🚨 Дедлайны</option>
             <option value="idea">💡 Идеи</option>
             <option value="normal">➖ Обычные</option>
         </select>
 
-        <div style="width: 2px; height: 20px; background: var(--border-color); margin: 0 5px;"></div>
-
-        <!-- КНОПКИ БЭКАПА -->
-        <button onclick="exportData()" title="Скачать резервную копию на ПК">💾 Бэкап</button>
-        <button onclick="document.getElementById('file-import').click()" title="Загрузить резервную копию">📂 Загрузить</button>
-        <input type="file" id="file-import" style="display: none" accept=".json" onchange="importData(event)">
-
-        <select id="theme-select" onchange="applyTheme(this.value)">
+        <select id="theme-select" class="control-select" onchange="applyTheme(this.value)">
             <option value="light">☀️ Светлая</option><option value="dark">🌙 Тёмная</option><option value="system">💻 Авто</option>
         </select>
-
-        <!-- КНОПКА ОТКРЫТИЯ ПАПОК -->
-        <button onclick="toggleSidebar()" style="background: #f59e0b; color: white; border: none; margin-left: auto;">🗂 Проекты</button>
     </div>
 
     <!-- ТЕМНАЯ ПОДЛОЖКА -->
@@ -136,15 +171,13 @@
     <!-- БОКОВАЯ ПАНЕЛЬ ПАПОК -->
     <div id="sidebar">
         <h3>Мои Проекты <button id="close-sidebar" onclick="toggleSidebar()">✖</button></h3>
-        <div class="folder-list" id="folder-list">
-            <!-- Сюда добавляются папки -->
-        </div>
-        <button id="btn-add-folder" onclick="uiCreateFolder()">➕ Создать новый проект</button>
+        <div class="folder-list" id="folder-list"></div>
+        <button id="btn-add-folder" class="control-btn" onclick="uiCreateFolder()" style="background: #118ab2; color: white; border: none; justify-content: center;">➕ Создать новый проект</button>
     </div>
 
     <button id="btn-fit" onclick="fitCamera()" title="Показать весь граф">🎯</button>
 
-    <!-- МОДАЛКА 1: ВЫБОР СМАЙЛА -->
+    <!-- МОДАЛКИ (Скрыты) -->
     <div id="emoji-picker" class="modal">
         <h4>1. Выбери цвет:</h4>
         <div class="color-row" id="color-selector">
@@ -155,44 +188,35 @@
             <div class="color-dot" style="background:#8338ec" onclick="pickColor(this, '#8338ec')"></div>
         </div>
         <h4>2. Выбери иконку:</h4>
-        
         <div class="category-title">💼 Работа и Учёба</div>
         <div class="emoji-grid">
             <span onclick="selectEmoji('💼', 'work')">💼</span><span onclick="selectEmoji('💻', 'work')">💻</span><span onclick="selectEmoji('📞', 'work')">📞</span>
             <span onclick="selectEmoji('📚', 'work')">📚</span><span onclick="selectEmoji('📊', 'work')">📊</span><span onclick="selectEmoji('🎓', 'work')">🎓</span>
         </div>
-        
         <div class="category-title">🏃‍♂️ Здоровье и Спорт</div>
         <div class="emoji-grid">
             <span onclick="selectEmoji('🏋️‍♂️', 'sport')">🏋️‍♂️</span><span onclick="selectEmoji('🏃‍♂️', 'sport')">🏃‍♂️</span><span onclick="selectEmoji('🧘‍♂️', 'sport')">🧘‍♂️</span>
             <span onclick="selectEmoji('🍏', 'sport')">🍏</span><span onclick="selectEmoji('💊', 'sport')">💊</span><span onclick="selectEmoji('⚽', 'sport')">⚽</span>
         </div>
-        
         <div class="category-title">🏠 Быт и Личное</div>
         <div class="emoji-grid">
             <span onclick="selectEmoji('🛒', 'home')">🛒</span><span onclick="selectEmoji('🧹', 'home')">🧹</span><span onclick="selectEmoji('🍔', 'home')">🍔</span>
             <span onclick="selectEmoji('💰', 'home')">💰</span><span onclick="selectEmoji('✈️', 'home')">✈️</span><span onclick="selectEmoji('💡', 'home')">💡</span>
         </div>
-        
         <div class="btn-row" style="margin-top: 15px;"><button class="cancel-btn" onclick="cancelAction()">Отмена</button></div>
     </div>
 
-    <!-- МОДАЛКА 2: ВВОД ДАННЫХ (НЕОБЯЗАТЕЛЬНЫЕ ПОЛЯ) -->
     <div id="text-input-modal" class="modal">
         <h4 id="text-modal-title">Настройка задачи</h4>
         <span class="input-label">Название (по желанию)</span>
         <input type="text" id="custom-title" class="custom-input" placeholder="Без названия">
-        
         <span class="input-label">Срок (по желанию)</span>
         <input type="date" id="custom-date" class="custom-input">
-        
         <span class="input-label">Описание (по желанию)</span>
         <textarea id="custom-desc" class="custom-input custom-textarea" placeholder="Краткие заметки..."></textarea>
-        
         <div class="btn-row"><button class="btn-save" onclick="saveCustomText()">✔ Создать</button><button class="cancel-btn" onclick="cancelAction()">Отмена</button></div>
     </div>
 
-    <!-- МОДАЛКА 3: ТИП СВЯЗИ -->
     <div id="edge-type-modal" class="modal" style="width: 280px;">
         <h4>Выберите тип связи:</h4>
         <button class="edge-btn" style="background: #9ca3af;" onclick="saveEdge('normal')">➖ Обычная задача</button>
@@ -201,10 +225,8 @@
         <button class="cancel-btn" onclick="cancelAction()">Отмена</button>
     </div>
 
-    <!-- ХОЛСТ -->
     <div id="network-container"></div>
 
-    <!-- ПАНЕЛЬ ЧТЕНИЯ -->
     <div id="description-panel">
         <div class="desc-content">
             <h3 id="desc-title">Название</h3>
@@ -215,25 +237,15 @@
     </div>
 
     <script type="text/javascript">
-        // =========================================================
-        // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ЗАЩИТА
-        // =========================================================
         var network, nodes, edges;
         var tempNodeData = null, tempCallback = null, tempEdgeData = null, tempEdgeCallback = null;
         var selectedColor = '#118ab2', currentSelectedNodeId = null;
         var trash =[]; 
-        var saveTimeout = null;
-        let folderLogic; 
+        var folderLogic; 
 
-        var appData = {
-            activeFolderId: 'default',
-            theme: 'light',
-            folders: {}
-        };
+        var appData = { activeFolderId: 'default', theme: 'light', folders: {} };
 
-        function escapeHTML(str) { 
-            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); 
-        }
+        function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
 
         function applyTheme(theme) {
             appData.theme = theme;
@@ -242,67 +254,48 @@
         }
 
         // =========================================================
-        // ЧАСТЬ A: ЛОГИКА ПАПОК (FolderManager)
-        // Изолированный модуль управления состоянием.
+        // ЛОГИКА ПАПОК (FolderManager)
         // =========================================================
         class FolderManager {
             constructor(initialFolders, initialActiveId) {
                 this.folders = JSON.parse(JSON.stringify(initialFolders || {}));
                 this.activeFolderId = initialActiveId;
-
                 if (!this.folders['default']) {
                     this.folders['default'] = this._createEmptyFolderState('Мой первый проект');
                     this.activeFolderId = 'default';
                 }
             }
-
-            _createEmptyFolderState(name) {
-                return {
-                    name: name,
-                    nodes:[{ id: 1, rawEmoji: '', rawTitle: 'Я', category: 'other', label: '🧍‍♂️\nЯ', font: { size: 40, color: '#333' }, shape: 'circle', color: '#ffd166', fixed: true }],
-                    edges:[]
-                };
-            }
-
+            _createEmptyFolderState(name) { return { name: name, nodes:[{ id: 1, rawEmoji: '', rawTitle: 'Я', category: 'other', label: '🧍‍♂️\nЯ', font: { size: 40, color: '#333' }, shape: 'circle', color: '#ffd166', fixed: true }], edges:[] }; }
             validateName(name) {
                 if (!name || typeof name !== 'string') throw new Error("Имя не может быть пустым");
                 const trimmed = name.trim();
                 if (trimmed.length === 0) throw new Error("Имя не может состоять только из пробелов");
-                if (trimmed.length > 50) throw new Error("Имя слишком длинное (максимум 50 символов)");
-                if (/[<>]/g.test(trimmed)) throw new Error("Имя содержит недопустимые символы (<, >)");
+                if (trimmed.length > 50) throw new Error("Имя слишком длинное");
+                if (/[<>]/g.test(trimmed)) throw new Error("Имя содержит недопустимые символы");
                 return trimmed;
             }
-
             createFolder(name) {
                 const validName = this.validateName(name);
                 const newId = 'folder_' + Date.now();
                 this.folders[newId] = this._createEmptyFolderState(validName);
                 return newId; 
             }
-
             renameFolder(id, newName) {
                 if (!this.folders[id]) throw new Error("Папка не найдена");
                 const validName = this.validateName(newName);
                 this.folders[id].name = validName;
                 return validName;
             }
-
             deleteFolder(id) {
                 if (!this.folders[id]) throw new Error("Папка не найдена");
                 if (Object.keys(this.folders).length <= 1) throw new Error("Нельзя удалить последнюю папку");
-                
                 delete this.folders[id];
-                if (this.activeFolderId === id) {
-                    this.activeFolderId = Object.keys(this.folders)[0];
-                }
+                if (this.activeFolderId === id) this.activeFolderId = Object.keys(this.folders)[0];
                 return this.activeFolderId;
             }
-
             switchFolder(targetId, currentState) {
                 if (!this.folders[targetId]) throw new Error("Целевая папка не существует.");
                 if (targetId === this.activeFolderId) return this.folders[targetId];
-
-                // Безопасно сохраняем состояние текущей папки
                 if (this.folders[this.activeFolderId] && currentState) {
                     this.folders[this.activeFolderId].nodes = JSON.parse(JSON.stringify(currentState.nodes));
                     this.folders[this.activeFolderId].edges = JSON.parse(JSON.stringify(currentState.edges));
@@ -310,14 +303,12 @@
                 this.activeFolderId = targetId;
                 return JSON.parse(JSON.stringify(this.folders[targetId]));
             }
-
             getActiveFolderData() { return this.folders[this.activeFolderId]; }
         }
 
         // =========================================================
-        // ЧАСТЬ B: ИНТЕГРАЦИЯ UI И СИНХРОНИЗАЦИЯ
+        // ИНТЕГРАЦИЯ UI И СИНХРОНИЗАЦИЯ
         // =========================================================
-
         function getCurrentNetworkState() {
             if (!network) return { nodes: [], edges:[] };
             const positions = network.getPositions();
@@ -329,6 +320,7 @@
             return { nodes: nodesArray, edges: edges.get() };
         }
 
+        var saveTimeout = null;
         window.saveData = function() {
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(function() {
@@ -348,57 +340,39 @@
         window.uiRenderFolders = function() {
             const list = document.getElementById('folder-list');
             list.innerHTML = '';
-            const folders = folderLogic.folders;
-            
-            for (let id in folders) {
-                let f = folders[id];
+            for (let id in folderLogic.folders) {
+                let f = folderLogic.folders[id];
                 let div = document.createElement('div');
                 div.className = 'folder-item' + (id === folderLogic.activeFolderId ? ' active' : '');
-                
                 div.innerHTML = `<span onclick="uiSwitchFolder('${id}')" style="flex-grow:1; word-break: break-all;">${escapeHTML(f.name)}</span>`;
-                
                 let actions = document.createElement('div');
                 actions.style.display = 'flex'; actions.style.gap = '5px';
-                
                 actions.innerHTML += `<span class="folder-action" style="color: #10b981;" onclick="uiRenameFolder('${id}')" title="Переименовать">✏️</span>`;
-                if (id !== 'default') {
-                    actions.innerHTML += `<span class="folder-action folder-delete" onclick="uiDeleteFolder('${id}')" title="Удалить">🗑</span>`;
-                }
-                
-                div.appendChild(actions);
-                list.appendChild(div);
+                if (id !== 'default') actions.innerHTML += `<span class="folder-action folder-delete" onclick="uiDeleteFolder('${id}')" title="Удалить">🗑</span>`;
+                div.appendChild(actions); list.appendChild(div);
             }
         };
 
         window.toggleSidebar = function() {
             var sb = document.getElementById('sidebar');
             var ov = document.getElementById('overlay');
-            if (sb.classList.contains('open')) {
-                sb.classList.remove('open'); ov.style.display = 'none';
-            } else {
-                sb.classList.add('open'); ov.style.display = 'block';
-                uiRenderFolders();
-            }
+            if (sb.classList.contains('open')) { sb.classList.remove('open'); ov.style.display = 'none'; } 
+            else { sb.classList.add('open'); ov.style.display = 'block'; uiRenderFolders(); }
         };
 
         window.uiCreateFolder = function() {
             let name = prompt("Введите название нового проекта:");
             if (name === null) return;
-            try {
-                const newId = folderLogic.createFolder(name);
-                uiSwitchFolder(newId);
-            } catch (error) { alert("Ошибка создания: " + error.message); }
+            try { const newId = folderLogic.createFolder(name); uiSwitchFolder(newId); } 
+            catch (error) { alert("Ошибка создания: " + error.message); }
         };
 
         window.uiRenameFolder = function(id) {
             const currentName = folderLogic.folders[id].name;
             let newName = prompt("Новое имя для папки:", currentName);
             if (newName === null || newName === currentName) return;
-            try {
-                folderLogic.renameFolder(id, newName);
-                uiRenderFolders(); 
-                saveData(); 
-            } catch (error) { alert("Ошибка: " + error.message); }
+            try { folderLogic.renameFolder(id, newName); uiRenderFolders(); saveData(); } 
+            catch (error) { alert("Ошибка: " + error.message); }
         };
 
         window.uiDeleteFolder = function(id) {
@@ -407,15 +381,11 @@
                 const fallbackId = folderLogic.deleteFolder(id);
                 if (folderLogic.activeFolderId === fallbackId && id !== fallbackId) {
                     const fallbackData = folderLogic.getActiveFolderData();
-                    nodes.clear(); edges.clear();
-                    nodes.add(fallbackData.nodes); edges.add(fallbackData.edges);
+                    nodes.clear(); edges.clear(); nodes.add(fallbackData.nodes); edges.add(fallbackData.edges);
                     trash =[]; document.getElementById('btn-undo').style.display = 'none';
-                    updateAllLabelsAndEmotions();
-                    applyFilters();
-                    network.fit({ animation: { duration: 300 } });
+                    updateAllLabelsAndEmotions(); applyFilters(); network.fit({ animation: { duration: 300 } });
                 }
-                uiRenderFolders();
-                saveData();
+                uiRenderFolders(); saveData();
             } catch (error) { alert("Ошибка удаления: " + error.message); }
         };
 
@@ -425,19 +395,11 @@
                 const currentState = getCurrentNetworkState();
                 const newFolderData = folderLogic.switchFolder(targetId, currentState);
                 
-                nodes.clear(); edges.clear();
-                nodes.add(newFolderData.nodes); edges.add(newFolderData.edges);
-                
+                nodes.clear(); edges.clear(); nodes.add(newFolderData.nodes); edges.add(newFolderData.edges);
                 trash =[]; document.getElementById('btn-undo').style.display = 'none';
                 
-                updateAllLabelsAndEmotions();
-                applyFilters();
-                uiRenderFolders();
-                network.fit({ animation: { duration: 300 } });
-                
-                appData.folders = folderLogic.folders;
-                appData.activeFolderId = folderLogic.activeFolderId;
-                saveData(); 
+                updateAllLabelsAndEmotions(); applyFilters(); uiRenderFolders(); network.fit({ animation: { duration: 300 } });
+                appData.folders = folderLogic.folders; appData.activeFolderId = folderLogic.activeFolderId; saveData(); 
             } catch (error) { alert("Сбой при переключении: " + error.message); }
         };
 
@@ -463,19 +425,15 @@
             else if (activeNormal >= 5) emotion = '🤔'; 
             else emotion = '😐'; 
 
-            // Защита от бесконечного цикла
             let centerNode = nodes.get(1);
-            if (centerNode && centerNode.label !== emotion + '\nЯ') {
-                updates.push({ id: 1, label: emotion + '\nЯ' });
-            }
+            if (centerNode && centerNode.label !== emotion + '\nЯ') updates.push({ id: 1, label: emotion + '\nЯ' });
 
             nodes.forEach(node => {
                 if(node.id === 1) return;
                 let title = node.rawTitle ? node.rawTitle : 'Без названия';
-                let text = (node.isCompleted ? '✅ ' : '') + (node.rawEmoji || '') + '\n' + title;
+                let text = (node.isCompleted ? '✅ ' : '') + (node.rawEmoji ? node.rawEmoji + '\n' : '') + title;
                 if (node.label !== text) updates.push({ id: node.id, label: text });
             });
-            
             if (updates.length > 0) nodes.update(updates);
         };
 
@@ -483,7 +441,6 @@
         window.applyFilters = function() {
             let catFilter = document.getElementById('filter-category').value;
             let edgeFilter = document.getElementById('filter-edge').value;
-
             let nodesToUpdate =[];
             nodes.forEach(n => {
                 if (n.id === 1) return; 
@@ -509,12 +466,10 @@
             appData.folders = folderLogic.folders;
             appData.activeFolderId = folderLogic.activeFolderId;
 
-            document.getElementById('theme-select').value = appData.theme || 'light'; 
-            applyTheme(appData.theme || 'light');
+            document.getElementById('theme-select').value = appData.theme || 'light'; applyTheme(appData.theme || 'light');
 
             const activeData = folderLogic.getActiveFolderData();
-            nodes = new vis.DataSet(activeData.nodes);
-            edges = new vis.DataSet(activeData.edges);
+            nodes = new vis.DataSet(activeData.nodes); edges = new vis.DataSet(activeData.edges);
             
             var options = {
                 physics: { enabled: true, solver: 'forceAtlas2Based', forceAtlas2Based: { gravitationalConstant: -100, springLength: 150 } },
@@ -531,18 +486,13 @@
             network.once("afterDrawing", () => fitCamera());
             updateAllLabelsAndEmotions();
 
-            nodes.on('*', () => { updateAllLabelsAndEmotions(); saveData(); }); 
-            edges.on('*', () => { updateAllLabelsAndEmotions(); saveData(); });
+            nodes.on('*', () => { updateAllLabelsAndEmotions(); saveData(); }); edges.on('*', () => { updateAllLabelsAndEmotions(); saveData(); });
 
             network.on('selectNode', function (p) {
-                var node = nodes.get(p.nodes[0]);
-                currentSelectedNodeId = node.id;
+                var node = nodes.get(p.nodes[0]); currentSelectedNodeId = node.id;
                 document.getElementById('desc-title').innerText = (node.rawEmoji ? node.rawEmoji + ' ' : '') + (node.rawTitle || 'Без названия');
-                
                 var dateEl = document.getElementById('desc-date');
-                if (node.dueDate) { dateEl.innerText = "🗓 Срок: " + node.dueDate; dateEl.style.display = 'inline-block'; } 
-                else { dateEl.style.display = 'none'; }
-
+                if (node.dueDate) { dateEl.innerText = "🗓 Срок: " + node.dueDate; dateEl.style.display = 'inline-block'; } else { dateEl.style.display = 'none'; }
                 document.getElementById('desc-text').innerText = node.description || "Описания нет.";
                 document.getElementById('description-panel').classList.add('active');
                 document.getElementById('btn-complete').style.display = (node.id === 1 || node.isCompleted) ? 'none' : 'block';
@@ -588,8 +538,7 @@
         window.startQuickAdd = function() {
             let pos = network.getViewPosition(); let scale = network.getScale();
             let dx = (Math.random() - 0.5) * (250 / scale); let dy = (Math.random() - 0.5) * (250 / scale);
-            tempNodeData = { id: Date.now(), x: pos.x + dx, y: pos.y + dy };
-            document.getElementById('emoji-picker').style.display = 'block';
+            tempNodeData = { id: Date.now(), x: pos.x + dx, y: pos.y + dy }; document.getElementById('emoji-picker').style.display = 'block';
         };
 
         window.selectEmoji = function(emoji, category) { 
@@ -622,7 +571,6 @@
         
         window.cancelAction = function() { document.querySelectorAll('.modal').forEach(el => el.style.display = 'none'); if(tempEdgeCallback) tempEdgeCallback(null); };
         window.markCompleted = function() { if (!currentSelectedNodeId) return; var node = nodes.get(currentSelectedNodeId); nodes.update({ id: node.id, isCompleted: true, color: { background: '#dcfce7', border: '#22c55e' }, borderWidth: 3, font: { color: '#166534' } }); document.getElementById('btn-complete').style.display = 'none'; confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors:['#22c55e', '#118ab2', '#ffd166', '#ef476f'] }); };
-        window.addNodeMode = function() { network.addNodeMode(); };
         window.addEdgeMode = function() { network.addEdgeMode(); };
     </script>
 </body>
