@@ -13,7 +13,7 @@
         :root { --bg-color: #f4f7f6; --surface-color: #ffffff; --text-main: #2c3e50; --text-desc: #34495e; --border-color: #ddd; --input-bg: #ffffff; }
         [data-theme="dark"] { --bg-color: #1a1a1a; --surface-color: #2d2d2d; --text-main: #f8f9fa; --text-desc: #ced4da; --border-color: #495057; --input-bg: #333333; }
         
-        /* 100dvh И ЖЕСТКАЯ ФИКСАЦИЯ (ИДЕАЛЬНО ДЛЯ МОБИЛОК) */
+        /* 100dvh И ЖЕСТКАЯ ФИКСАЦИЯ */
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100dvh; position: fixed; 
             font-family: 'Segoe UI', sans-serif; overflow: hidden; 
@@ -311,10 +311,10 @@
         }
 
         // =========================================================
-        // ИНТЕГРАЦИЯ UI И УМНОЕ АВТОСОХРАНЕНИЕ
+        // ИНТЕГРАЦИЯ UI И СИНХРОНИЗАЦИЯ
         // =========================================================
         function getCurrentNetworkState() {
-            if (!network) return { nodes:[], edges:[] };
+            if (!network) return { nodes: [], edges:[] };
             const positions = network.getPositions();
             const nodesArray = nodes.get().map(n => {
                 const c = Object.assign({}, n);
@@ -338,7 +338,7 @@
                     appData.activeFolderId = folderLogic.activeFolderId;
                     localStorage.setItem('taskManagerApp_ProData', JSON.stringify(appData));
                 }
-            }, 1500); // Оптимизация: увеличена задержка для исключения малейших фризов
+            }, 800);
         };
 
         window.uiRenderFolders = function() {
@@ -407,7 +407,7 @@
             } catch (error) { alert("Сбой при переключении: " + error.message); }
         };
 
-        // --- ЛОГИКА ЭМОЦИЙ И ОБНОВЛЕНИЯ (Оптимизирована от фризов) ---
+        // --- ЛОГИКА ЭМОЦИЙ ---
         window.updateAllLabelsAndEmotions = function() {
             var updates =[];
             var allTasks = nodes.get().filter(n => n.id !== 1);
@@ -429,11 +429,11 @@
             else if (activeNormal >= 5) emotion = '🤔'; 
             else emotion = '😐'; 
 
+            let centerNode = nodes.get(1);
+            if (centerNode && centerNode.label !== emotion + '\nЯ') updates.push({ id: 1, label: emotion + '\nЯ' });
+
             nodes.forEach(node => {
-                if(node.id === 1) {
-                    if (node.label !== emotion + '\nЯ') updates.push({ id: 1, label: emotion + '\nЯ' });
-                    return;
-                }
+                if(node.id === 1) return;
                 let title = node.rawTitle ? node.rawTitle : 'Без названия';
                 let text = (node.isCompleted ? '✅ ' : '') + (node.rawEmoji ? node.rawEmoji + '\n' : '') + title;
                 if (node.label !== text) updates.push({ id: node.id, label: text });
@@ -478,7 +478,25 @@
             var options = {
                 physics: { enabled: true, solver: 'forceAtlas2Based', forceAtlas2Based: { gravitationalConstant: -100, springLength: 150 } },
                 interaction: { hover: true, dragNodes: true },
-                manipulation: { enabled: false, addEdge: function(d, cb) { if(d.from!==d.to){ tempEdgeData=d; tempEdgeCallback=cb; document.getElementById('edge-type-modal').style.display='block'; } else cb(null); } }
+                manipulation: { 
+                    enabled: false, 
+                    addEdge: function(d, cb) { 
+                        if (d.from === d.to) { cb(null); return; }
+                        
+                        // ИСПРАВЛЕНИЕ: Блокировка повторных связей между одними и теми же задачами
+                        let edgeExists = edges.get().some(e => 
+                            (e.from === d.from && e.to === d.to) || 
+                            (e.from === d.to && e.to === d.from)
+                        );
+                        if (edgeExists) {
+                            alert("⚠️ Связь между этими задачами уже существует!");
+                            cb(null);
+                            return;
+                        }
+
+                        tempEdgeData=d; tempEdgeCallback=cb; document.getElementById('edge-type-modal').style.display='block'; 
+                    } 
+                }
             };
 
             network = new vis.Network(document.getElementById('network-container'), { nodes: nodes, edges: edges }, options);
@@ -490,7 +508,6 @@
             network.once("afterDrawing", () => fitCamera());
             updateAllLabelsAndEmotions();
 
-            // Оптимизация: Обновляем эмоции и пишем данные только при добавлении/удалении структур, а не на каждый чих
             nodes.on('add', () => { updateAllLabelsAndEmotions(); saveData(); }); 
             nodes.on('remove', () => { updateAllLabelsAndEmotions(); saveData(); }); 
             edges.on('add', () => { updateAllLabelsAndEmotions(); saveData(); }); 
