@@ -125,7 +125,7 @@
         <button id="btn-undo" class="control-btn" onclick="undoDelete()" style="display: none; background: #fef3c7; color: #d97706; border-color: #fbbf24;">↩️ Отменить</button>
     </div>
 
-    <!-- ВТОРОСТЕПЕННЫЕ ДЕЙСТВИЯ И ФИЛЬТРЫ -->
+    <!-- ВТОРОСТЕПЕННЫЕ ДЕЙСТВИЯ -->
     <div id="secondary-actions">
         
         <!-- Выпадающее меню: ОЧИСТКА И УДАЛЕНИЕ -->
@@ -147,19 +147,8 @@
         </div>
         <input type="file" id="file-import" style="display: none" accept=".json" onchange="importData(event)">
 
-        <select id="filter-category" class="control-select" onchange="applyFilters()">
-            <option value="all">🔍 Все</option>
-            <option value="work">💼 Работа</option>
-            <option value="sport">🏃‍♂️ Спорт</option>
-            <option value="home">🏠 Быт</option>
-        </select>
-        
-        <select id="filter-edge" class="control-select" onchange="applyFilters()">
-            <option value="all">⚡ Все</option>
-            <option value="urgent">🚨 Срочно</option>
-            <option value="idea">💡 Идеи</option>
-            <option value="normal">➖ Обычные</option>
-        </select>
+        <!-- НОВАЯ КНОПКА ФИЛЬТРОВ -->
+        <button class="control-btn" onclick="openFilterModal()">🔍 Фильтры</button>
 
         <select id="theme-select" class="control-select" onchange="applyTheme(this.value)">
             <option value="light">☀️ Светлая</option><option value="dark">🌙 Тёмная</option><option value="system">💻 Авто</option>
@@ -207,6 +196,7 @@
         <div class="btn-row" style="margin-top: 15px;"><button class="cancel-btn" onclick="cancelAction()">Отмена</button></div>
     </div>
 
+    <!-- МОДАЛКА 2: ВВОД ДАННЫХ -->
     <div id="text-input-modal" class="modal">
         <h4 id="text-modal-title">Настройка задачи</h4>
         <span class="input-label">Название (по желанию)</span>
@@ -218,12 +208,42 @@
         <div class="btn-row"><button class="btn-save" onclick="saveCustomText()">✔ Создать</button><button class="cancel-btn" onclick="cancelAction()">Отмена</button></div>
     </div>
 
+    <!-- МОДАЛКА 3: ТИП СВЯЗИ -->
     <div id="edge-type-modal" class="modal" style="width: 280px;">
         <h4>Выберите тип связи:</h4>
         <button class="edge-btn" style="background: #9ca3af;" onclick="saveEdge('normal')">➖ Обычная задача</button>
         <button class="edge-btn" style="background: #ef476f;" onclick="saveEdge('urgent')">🚨 СРОЧНО! (Дедлайн)</button>
         <button class="edge-btn" style="background: #118ab2; border: 2px dashed #fff;" onclick="saveEdge('idea')">💡 Идея (на будущее)</button>
         <button class="cancel-btn" onclick="cancelAction()">Отмена</button>
+    </div>
+
+    <!-- МОДАЛКА 4: НОВОЕ ОКНО ФИЛЬТРОВ -->
+    <div id="filter-modal" class="modal" style="width: 380px;">
+        <h4 id="filter-modal-title">Настройка фильтров</h4>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 130px;">
+                <span class="input-label">Фильтр для задач</span>
+                <select id="filter-category" class="custom-input" style="margin-bottom: 0;">
+                    <option value="all">🔍 Все</option>
+                    <option value="work">💼 Работа</option>
+                    <option value="sport">🏃‍♂️ Спорт</option>
+                    <option value="home">🏠 Быт</option>
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 130px;">
+                <span class="input-label">Фильтр для связей</span>
+                <select id="filter-edge" class="custom-input" style="margin-bottom: 0;">
+                    <option value="all">⚡ Все</option>
+                    <option value="urgent">🚨 Срочно</option>
+                    <option value="idea">💡 Идеи</option>
+                    <option value="normal">➖ Обычные</option>
+                </select>
+            </div>
+        </div>
+        <div class="btn-row" style="margin-top: 20px;">
+            <button class="btn-save" onclick="applyFiltersFromModal()">✔ Ок</button>
+            <button class="cancel-btn" onclick="cancelAction()">Отмена</button>
+        </div>
     </div>
 
     <div id="network-container"></div>
@@ -247,7 +267,6 @@
 
         var appData = { activeFolderId: 'default', theme: 'light', folders: {} };
 
-        // СБРОС ФОКУСА МЕНЮ
         function closeDropdowns() { if (document.activeElement) document.activeElement.blur(); }
         function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
 
@@ -441,7 +460,17 @@
             if (updates.length > 0) nodes.update(updates);
         };
 
-        // --- ФИЛЬТРЫ ---
+        // --- НОВЫЕ ФИЛЬТРЫ ---
+        window.openFilterModal = function() {
+            closeDropdowns();
+            document.getElementById('filter-modal').style.display = 'block';
+        };
+
+        window.applyFiltersFromModal = function() {
+            document.getElementById('filter-modal').style.display = 'none';
+            applyFilters();
+        };
+
         window.applyFilters = function() {
             let catFilter = document.getElementById('filter-category').value;
             let edgeFilter = document.getElementById('filter-edge').value;
@@ -482,18 +511,8 @@
                     enabled: false, 
                     addEdge: function(d, cb) { 
                         if (d.from === d.to) { cb(null); return; }
-                        
-                        // ИСПРАВЛЕНИЕ: Блокировка повторных связей между одними и теми же задачами
-                        let edgeExists = edges.get().some(e => 
-                            (e.from === d.from && e.to === d.to) || 
-                            (e.from === d.to && e.to === d.from)
-                        );
-                        if (edgeExists) {
-                            alert("⚠️ Связь между этими задачами уже существует!");
-                            cb(null);
-                            return;
-                        }
-
+                        let edgeExists = edges.get().some(e => (e.from === d.from && e.to === d.to) || (e.from === d.to && e.to === d.from));
+                        if (edgeExists) { alert("⚠️ Связь между этими задачами уже существует!"); cb(null); return; }
                         tempEdgeData=d; tempEdgeCallback=cb; document.getElementById('edge-type-modal').style.display='block'; 
                     } 
                 }
